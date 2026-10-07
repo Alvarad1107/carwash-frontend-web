@@ -1,0 +1,66 @@
+/* Paleta Oficial Sprint Wash - Estilo Móvil Edenilson */
+:root {
+  --sprint-blue: #1718cc; /* El azul oficial */
+  --sprint-gray: #808080;
+  --bg-light: #f4f5f9; /* Un gris muuuy clarito para el fondo */
+}
+
+body {
+  background-color: var(--bg-light);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* 1. Botón Principal Flotante con Brillo (Glow) */
+.btn-primary {
+  background-color: var(--sprint-blue) !important;
+  border-color: var(--sprint-blue) !important;
+  border-radius: 14px !important; /* Bordes mucho más redondeados */
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(23, 24, 204, 0.35) !important; /* El brillo azul debajo */
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(23, 24, 204, 0.45) !important;
+}
+
+/* 2. Tarjetas (Cards) súper suaves */
+.card-sprint {
+  border: none;
+  border-radius: 24px !important; /* Curva pronunciada tipo iOS */
+  box-shadow: 0 12px 36px rgba(0,0,0,0.04); /* Sombra súper sutil */
+  background-color: white;
+}
+
+/* 3. Inputs (Cajas de texto) estilo píldora */
+.input-sprint-container {
+  border: 1px solid #e0e0e0;
+  border-radius: 16px; /* Muy redondeado */
+  overflow: hidden;
+  background-color: white;
+}
+.input-sprint-container:focus-within {
+  border-color: var(--sprint-blue);
+  box-shadow: 0 0 0 3px rgba(23, 24, 204, 0.1);
+}
+.input-sprint-container .form-control {
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0.8rem 1rem;
+}
+.input-sprint-container .input-group-text {
+  background-color: white;
+  border: none;
+  padding-left: 1.2rem;
+}
+
+/* Textos */
+.text-sprint { color: var(--sprint-blue) !important; }
+.label-sprint {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 0.5rem;
+  display: block;
+}
