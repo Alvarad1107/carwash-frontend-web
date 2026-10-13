@@ -64,3 +64,18 @@ body {
   margin-bottom: 0.5rem;
   display: block;
 }
+
+/* 5. Efectos del Menú de Navegación */
+.nav-sprint-link {
+  transition: all 0.2s ease;
+}
+.nav-sprint-link:hover {
+  background-color: var(--bg-light);
+  color: var(--sprint-blue) !important;
+}
+
+/* Estado ACTIVO para el Menú de Navegación */
+.nav-sprint-link.active {
+  background-color: var(--sprint-blue) !important;
+  color: white !important;
+}

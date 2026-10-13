@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row g-4 mt-2">
+    
+    <!-- COLUMNA 1: Datos del Cliente -->
+    <div class="col-lg-3">
+        <div class="card card-sprint p-4 h-100">
+            <h6 class="fw-bold mb-4 text-dark">DATOS DEL CLIENTE</h6>
+            
+            <div class="input-group input-sprint-container mb-4">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" class="form-control" placeholder="Buscar (Nombre/Teléfono)">
+            </div>
+            
+            <p class="text-muted small fw-bold mb-3" style="letter-spacing: 0.5px;">RECIENTES</p>
+            
+            <div class="list-group list-group-flush mb-4">
+                <!-- Cliente 1 -->
+                <button class="list-group-item list-group-item-action bg-transparent border-0 px-0 d-flex align-items-center gap-3 mb-2">
+                    <i class="bi bi-person-circle fs-3 text-muted"></i>
+                    <div class="text-start">
+                        <span class="d-block fw-bold text-dark" style="font-size: 0.95rem;">Juan Pérez</span>
+                        <span class="d-block text-muted" style="font-size: 0.8rem;">7777-8888</span>
+                    </div>
+                </button>
+                <!-- Cliente 2 -->
+                <button class="list-group-item list-group-item-action bg-transparent border-0 px-0 d-flex align-items-center gap-3">
+                    <i class="bi bi-person-circle fs-3 text-muted"></i>
+                    <div class="text-start">
+                        <span class="d-block fw-bold text-dark" style="font-size: 0.95rem;">María López</span>
+                        <span class="d-block text-muted" style="font-size: 0.8rem;">juan.perez@email.com</span>
+                    </div>
+                </button>
+            </div>
+            
+            <button class="btn btn-outline-primary w-100 mt-auto py-2" style="border-radius: 12px; font-weight: 600;">
+                <i class="bi bi-plus-lg me-2"></i> Nuevo Cliente
+            </button>
+        </div>
+    </div>
+
+    <!-- COLUMNA 2: Datos del Vehículo y Servicios -->
+    <div class="col-lg-5">
+        <div class="card card-sprint p-4 h-100">
+            <h6 class="fw-bold mb-4 text-dark">VEHÍCULO Y SERVICIOS</h6>
+            
+            <!-- Selector Visual de Tipo de Auto -->
+            <div class="row g-3 mb-4 text-center">
+                <!-- Sedán (Seleccionado) -->
+                <div class="col-6 col-md-3">
+                    <div class="border rounded-4 p-3 border-primary bg-primary bg-opacity-10" style="cursor:pointer; border-width: 2px !important;">
+                        <i class="bi bi-car-front-fill fs-3 text-primary mb-2"></i>
+                        <span class="d-block fw-bold text-dark" style="font-size: 0.85rem;">Sedán</span>
+                        <span class="d-block text-muted" style="font-size: 0.75rem;">$3.00</span>
+                    </div>
+                </div>
+                <!-- SUV (Inactivo) -->
+                <div class="col-6 col-md-3">
+                    <div class="border rounded-4 p-3" style="cursor:pointer;">
+                        <i class="bi bi-car-front fs-3 text-muted mb-2"></i>
+                        <span class="d-block fw-bold text-dark" style="font-size: 0.85rem;">SUV</span>
+                        <span class="d-block text-muted" style="font-size: 0.75rem;">$3.00</span>
+                    </div>
+                </div>
+                <!-- Pick-up (Inactivo) -->
+                <div class="col-6 col-md-3">
+                    <div class="border rounded-4 p-3" style="cursor:pointer;">
+                        <i class="bi bi-truck-front fs-3 text-muted mb-2"></i>
+                        <span class="d-block fw-bold text-dark" style="font-size: 0.85rem;">Pick-up</span>
+                        <span class="d-block text-muted" style="font-size: 0.75rem;">$7.00</span>
+                    </div>
+                </div>
+                <!-- Microbús (Inactivo) -->
+                <div class="col-6 col-md-3">
+                    <div class="border rounded-4 p-3" style="cursor:pointer;">
+                        <i class="bi bi-bus-front fs-3 text-muted mb-2"></i>
+                        <span class="d-block fw-bold text-dark" style="font-size: 0.85rem;">Microbús</span>
+                        <span class="d-block text-muted" style="font-size: 0.75rem;">$7.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inputs del Auto -->
+            <div class="row g-3 mb-4">
+                <div class="col-12 text-start">
+                    <label class="label-sprint">Placa</label>
+                    <div class="input-group input-sprint-container">
+                        <span class="input-group-text"><i class="bi bi-123 text-muted"></i></span>
+                        <input type="text" class="form-control text-uppercase" placeholder="P-123456">
+                    </div>
+                </div>
+                <div class="col-6 text-start">
+                    <label class="label-sprint">Marca</label>
+                    <div class="input-group input-sprint-container">
+                        <input type="text" class="form-control" placeholder="Toyota">
+                    </div>
+                </div>
+                <div class="col-6 text-start">
+                    <label class="label-sprint">Modelo</label>
+                    <div class="input-group input-sprint-container">
+                        <input type="text" class="form-control" placeholder="Corolla">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Selección Rápida de Servicios -->
+            <h6 class="fw-bold mb-3 text-dark mt-2">SERVICIOS ADICIONALES</h6>
+            <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" role="switch" id="serv1" checked>
+                <label class="form-check-label ms-2 text-dark" for="serv1">Encerado Premium <span class="text-muted small">(+$5.00)</span></label>
+            </div>
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" role="switch" id="serv2">
+                <label class="form-check-label ms-2 text-dark" for="serv2">Pulido de Faros <span class="text-muted small">(+$10.00)</span></label>
+            </div>
+        </div>
+    </div>
+
+    <!-- COLUMNA 3: Resumen y Cobro -->
+    <div class="col-lg-4">
+        <div class="card card-sprint p-4 h-100" style="background-color: var(--sprint-blue);">
+            <h6 class="fw-bold mb-4 text-white text-opacity-75">RESUMEN DE ORDEN</h6>
+            
+            <div class="bg-white bg-opacity-10 rounded-4 p-3 mb-4 text-white">
+                <p class="mb-1 text-white text-opacity-50 small">CLIENTE:</p>
+                <p class="fw-bold mb-3 fs-5">Juan Pérez</p>
+                
+                <p class="mb-1 text-white text-opacity-50 small">VEHÍCULO:</p>
+                <p class="fw-bold mb-3">Toyota Corolla (Sedán) <br><span class="fw-normal text-opacity-75">Placa: P-123456</span></p>
+            </div>
+
+            <div class="text-white px-2 mb-4">
+                <div class="d-flex justify-content-between mb-2 small">
+                    <span class="text-white text-opacity-75">Lavado Full (Sedán)</span>
+                    <span class="fw-semibold">$12.00</span>
+                </div>
+                <div class="d-flex justify-content-between mb-3 small">
+                    <span class="text-white text-opacity-75">Encerado Premium</span>
+                    <span class="fw-semibold">$5.00</span>
+                </div>
+                
+                <hr class="border-white border-opacity-25">
+                
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="text-white text-opacity-75">Subtotal</span>
+                    <span>$17.00</span>
+                </div>
+                <div class="d-flex justify-content-between mb-3">
+                    <span class="text-white text-opacity-75">Impuestos</span>
+                    <span>$2.21</span>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mt-4">
+                    <span class="fw-bold text-white text-opacity-75 fs-6">TOTAL A PAGAR</span>
+                    <span class="fw-bold text-white fs-2">$19.21</span>
+                </div>
+            </div>
+
+            <button class="btn btn-light w-100 py-3 mt-auto d-flex justify-content-center align-items-center gap-2" style="border-radius: 14px; font-weight: 700; color: var(--sprint-blue);">
+                <span>GENERAR ORDEN</span>
+                <i class="bi bi-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

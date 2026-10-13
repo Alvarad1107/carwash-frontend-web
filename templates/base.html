@@ -15,20 +15,62 @@
 </head>
 <body>
 
-    <!-- Barra de Navegación Superior -->
-    <nav class="navbar navbar-dark navbar-sprint shadow-sm">
-        <div class="container-fluid">
-            <!-- Si tienes el logo en static/img/, usas esto: 
-                 <img src="{% static 'img/logo.png' %}" alt="Logo" height="40"> 
-            -->
-            <a class="navbar-brand fw-bold" href="#">
-                <i class="bi bi-droplet-fill"></i> SPRINT WASH
-            </a>
+    <!-- Barra de Navegación Superior con Menú -->
+    <nav class="navbar navbar-expand-lg bg-white shadow-sm py-3 mb-4">
+        <div class="container-fluid px-4">
             
-            <div class="d-flex text-white align-items-center">
-                <span class="me-3">Admin: Don Edwin</span>
-                <button class="btn btn-sm btn-outline-light">Cerrar Sesión</button>
+            <!-- Izquierda: Logo y Título -->
+            <div class="d-flex align-items-center gap-4">
+                <!-- Ruta corregida para el logo -->
+                <img src="{% static 'img/Sprint Wash Logo.png' %}" alt="Sprint Wash Logo" style="height: 45px;">
+                <h5 class="mb-0 fw-bold text-dark d-none d-xl-block" style="letter-spacing: 0.5px;">
+                    {% block nav_title %}SISTEMA SPRINT WASH{% endblock %}
+                </h5>
             </div>
+
+            <!-- Botón Hamburguesa (Aparece en celulares) -->
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#menuPrincipal">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <!-- Centro: Menú de Navegación -->
+            <div class="collapse navbar-collapse justify-content-center" id="menuPrincipal">
+                <ul class="navbar-nav gap-1">
+                    <li class="nav-item">
+                        <a class="nav-link fw-semibold px-3 rounded-pill nav-sprint-link {% if request.path == '/monitor/' %}active{% else %}text-dark{% endif %}" href="{% url 'monitor' %}">
+                            <i class="bi bi-display me-2"></i>Monitor
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link fw-semibold px-3 rounded-pill nav-sprint-link {% if request.path == '/caja/' %}active{% else %}text-dark{% endif %}" href="{% url 'caja' %}">
+                            <i class="bi bi-shop me-2"></i>Punto de Venta
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link fw-semibold px-3 rounded-pill nav-sprint-link {% if request.path == '/catalogos/' %}active{% else %}text-dark{% endif %}" href="{% url 'catalogos' %}">
+                            <i class="bi bi-tags me-2"></i>Catálogos
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link fw-semibold px-3 rounded-pill nav-sprint-link {% if request.path == '/usuarios/' %}active{% else %}text-dark{% endif %}" href="{% url 'usuarios' %}">
+                            <i class="bi bi-people me-2"></i>Usuarios
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Derecha: Perfil y Logout -->
+            <div class="d-none d-lg-flex align-items-center gap-3">
+                <div class="text-end">
+                    <span class="d-block text-dark fw-semibold" style="font-size: 0.85rem;">Don Edwin</span>
+                    <span class="d-block text-muted" style="font-size: 0.75rem;">Admin General</span>
+                </div>
+                <div class="border-start ps-3">
+                    <!-- Este botón te regresa al login -->
+                    <a href="{% url 'login' %}" class="text-sprint text-decoration-none fw-semibold">Logout</a>
+                </div>
+            </div>
+
         </div>
     </nav>
 

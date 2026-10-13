@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+
+{% block nav_title %}MÓDULO DE USUARIOS Y ROLES{% endblock %}
+
+{% block content %}
+<div class="row g-4 mt-2 justify-content-center">
+    <div class="col-lg-10">
+        
+        <div class="card card-sprint p-4">
+            <!-- Cabecera del Módulo -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h5 class="fw-bold text-dark mb-1">CONTROL DE ACCESO Y PERSONAL</h5>
+                    <p class="text-muted small mb-0">Gestión de cuentas y roles de seguridad</p>
+                </div>
+                <button class="btn btn-primary btn-sm px-4 py-2" style="border-radius: 12px; font-weight: 600;">
+                    <i class="bi bi-person-plus-fill me-2"></i> Agregar Nuevo Empleado
+                </button>
+            </div>
+
+            <!-- Buscador -->
+            <div class="row mb-4">
+                <div class="col-md-5">
+                    <div class="input-group input-sprint-container">
+                        <span class="input-group-text"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" class="form-control" placeholder="Buscar empleado por nombre o correo...">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla de Usuarios -->
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light text-muted" style="font-size: 0.85rem;">
+                        <tr>
+                            <th class="ps-3">ID</th>
+                            <th>Nombre Completo</th>
+                            <th>Correo Electrónico</th>
+                            <th class="text-center">Rol de Sistema</th>
+                            <th class="text-center">Estado</th>
+                            <th class="text-end pe-3">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody style="font-size: 0.95rem;">
+                        <!-- Fila 1: Encargado General -->
+                        <tr>
+                            <td class="ps-3 fw-bold text-muted">1004</td>
+                            <td class="fw-semibold text-dark">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-person-circle fs-4 text-primary"></i>
+                                    Don Edwin Martínez
+                                </div>
+                            </td>
+                            <td class="text-muted">don.edwin@sprintwash.local</td>
+                            <td class="text-center">
+                                <span class="badge rounded-pill px-3 py-1" style="background-color: var(--sprint-blue); color: white; font-weight: 600;">ENCARGADO GENERAL</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge rounded-pill bg-success px-3 py-1 bg-opacity-10 text-success border border-success">ACTIVO</span>
+                            </td>
+                            <td class="text-end pe-3">
+                                <button class="btn btn-sm btn-light text-primary me-1 rounded-circle" title="Editar"><i class="bi bi-pencil-square"></i></button>
+                                <button class="btn btn-sm btn-light text-secondary me-1 rounded-circle" title="Restablecer Contraseña"><i class="bi bi-key"></i></button>
+                                <button class="btn btn-sm btn-light text-danger rounded-circle" title="Desactivar" disabled><i class="bi bi-lock-fill"></i></button>
+                            </td>
+                        </tr>
+                        
+                        <!-- Fila 2: Cajero -->
+                        <tr>
+                            <td class="ps-3 fw-bold text-muted">1001</td>
+                            <td class="fw-semibold text-dark">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-person-circle fs-4 text-muted"></i>
+                                    Juan Pérez
+                                </div>
+                            </td>
+                            <td class="text-muted">juan.perez@sprintwash.local</td>
+                            <td class="text-center">
+                                <span class="badge rounded-pill border px-3 py-1" style="color: var(--sprint-blue); border-color: var(--sprint-blue) !important; font-weight: 600;">CAJERO</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge rounded-pill bg-success px-3 py-1 bg-opacity-10 text-success border border-success">ACTIVO</span>
+                            </td>
+                            <td class="text-end pe-3">
+                                <button class="btn btn-sm btn-light text-primary me-1 rounded-circle" title="Editar"><i class="bi bi-pencil-square"></i></button>
+                                <button class="btn btn-sm btn-light text-secondary me-1 rounded-circle" title="Restablecer Contraseña"><i class="bi bi-key"></i></button>
+                                <button class="btn btn-sm btn-light text-danger rounded-circle" title="Desactivar"><i class="bi bi-lock-fill"></i></button>
+                            </td>
+                        </tr>
+
+                        <!-- Fila 3: Supervisor de Patio -->
+                        <tr>
+                            <td class="ps-3 fw-bold text-muted">1002</td>
+                            <td class="fw-semibold text-dark">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-person-circle fs-4 text-muted"></i>
+                                    Erick Herrera
+                                </div>
+                            </td>
+                            <td class="text-muted">erick.herrera@sprintwash.local</td>
+                            <td class="text-center">
+                                <span class="badge rounded-pill bg-secondary px-3 py-1 text-white" style="font-weight: 600;">SUPERVISOR</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge rounded-pill bg-success px-3 py-1 bg-opacity-10 text-success border border-success">ACTIVO</span>
+                            </td>
+                            <td class="text-end pe-3">
+                                <button class="btn btn-sm btn-light text-primary me-1 rounded-circle" title="Editar"><i class="bi bi-pencil-square"></i></button>
+                                <button class="btn btn-sm btn-light text-secondary me-1 rounded-circle" title="Restablecer Contraseña"><i class="bi bi-key"></i></button>
+                                <button class="btn btn-sm btn-light text-danger rounded-circle" title="Desactivar"><i class="bi bi-lock-fill"></i></button>
+                            </td>
+                        </tr>
+
+                        <!-- Fila 4: Supervisor de Patio (Inactivo) -->
+                        <tr>
+                            <td class="ps-3 fw-bold text-muted">1003</td>
+                            <td class="fw-semibold text-muted">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-person-circle fs-4 text-muted opacity-50"></i>
+                                    Edenilson Escamilla
+                                </div>
+                            </td>
+                            <td class="text-muted opacity-75">edenilson.escamilla@sprintwash.local</td>
+                            <td class="text-center opacity-75">
+                                <span class="badge rounded-pill bg-secondary px-3 py-1 text-white" style="font-weight: 600;">SUPERVISOR</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge rounded-pill bg-secondary px-3 py-1 bg-opacity-10 text-secondary border border-secondary">INACTIVO</span>
+                            </td>
+                            <td class="text-end pe-3">
+                                <button class="btn btn-sm btn-light text-primary me-1 rounded-circle" title="Editar"><i class="bi bi-pencil-square"></i></button>
+                                <button class="btn btn-sm btn-light text-secondary me-1 rounded-circle" title="Restablecer Contraseña"><i class="bi bi-key"></i></button>
+                                <button class="btn btn-sm btn-light text-success rounded-circle" title="Activar"><i class="bi bi-unlock-fill"></i></button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Paginación -->
+            <div class="d-flex justify-content-center mt-4">
+                <nav aria-label="Page navigation">
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item disabled"><a class="page-link border-0 text-muted" href="#"><i class="bi bi-chevron-left"></i></a></li>
+                        <li class="page-item active"><a class="page-link border-0 rounded-circle text-white mx-1" style="background-color: var(--sprint-blue); width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;" href="#">1</a></li>
+                        <li class="page-item"><a class="page-link border-0 text-muted mx-1" href="#">2</a></li>
+                        <li class="page-item"><a class="page-link border-0 text-muted mx-1" href="#">3</a></li>
+                        <li class="page-item"><a class="page-link border-0 text-muted" href="#"><i class="bi bi-chevron-right"></i></a></li>
+                    </ul>
+                </nav>
+            </div>
+            
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+
+{% block nav_title %}GESTIÓN DE CATÁLOGOS{% endblock %}
+
+{% block content %}
+<div class="row g-4 mt-2">
+    
+    <!-- PANEL IZQUIERDO: Tipos de Vehículos -->
+    <div class="col-lg-5">
+        <div class="card card-sprint p-4 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h6 class="fw-bold text-dark mb-0">TIPOS DE VEHÍCULOS</h6>
+                <button class="btn btn-primary btn-sm px-3" style="border-radius: 10px;">
+                    <i class="bi bi-plus-lg"></i> Agregar
+                </button>
+            </div>
+            
+            <div class="input-group input-sprint-container mb-4">
+                <span class="input-group-text"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" class="form-control" placeholder="Buscar vehículo...">
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle border-top">
+                    <thead class="table-light text-muted" style="font-size: 0.8rem;">
+                        <tr>
+                            <th>Categoría</th>
+                            <th>Comisión Base</th>
+                            <th class="text-end">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody style="font-size: 0.9rem;">
+                        <tr>
+                            <td class="fw-semibold text-dark"><i class="bi bi-car-front-fill text-primary me-2"></i>Sedán</td>
+                            <td>$5.00</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-light text-primary me-1"><i class="bi bi-pencil-square"></i></button>
+                                <button class="btn btn-sm btn-light text-danger"><i class="bi bi-trash"></i></button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-dark"><i class="bi bi-car-front text-primary me-2"></i>SUV</td>
+                            <td>$7.00</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-light text-primary me-1"><i class="bi bi-pencil-square"></i></button>
+                                <button class="btn btn-sm btn-light text-danger"><i class="bi bi-trash"></i></button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-dark"><i class="bi bi-truck-front text-primary me-2"></i>Pick-up</td>
+                            <td>$8.00</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-light text-primary me-1"><i class="bi bi-pencil-square"></i></button>
+                                <button class="btn btn-sm btn-light text-danger"><i class="bi bi-trash"></i></button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANEL DERECHO: Catálogo de Servicios -->
+    <div class="col-lg-7">
+        <div class="card card-sprint p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h6 class="fw-bold text-dark mb-0">SERVICIOS BASE</h6>
+                <button class="btn btn-primary btn-sm px-3" style="border-radius: 10px;">
+                    <i class="bi bi-plus-lg"></i> Agregar Servicio
+                </button>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle border-top">
+                    <thead class="table-light text-muted" style="font-size: 0.8rem;">
+                        <tr>
+                            <th>Servicio Base</th>
+                            <th>Aplica a</th>
+                            <th>Precio Base</th>
+                            <th class="text-end">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody style="font-size: 0.9rem;">
+                        <tr>
+                            <td class="fw-semibold text-dark">Lavado Sencillo</td>
+                            <td><span class="badge bg-light text-dark border">Sedán</span></td>
+                            <td class="fw-bold text-dark">$8.00</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-light text-primary me-1"><i class="bi bi-pencil-square"></i></button>
+                                <button class="btn btn-sm btn-light text-danger"><i class="bi bi-trash"></i></button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-dark">Lavado Full</td>
+                            <td><span class="badge bg-light text-dark border">Sedán</span></td>
+                            <td class="fw-bold text-dark">$12.00</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-light text-primary me-1"><i class="bi bi-pencil-square"></i></button>
+                                <button class="btn btn-sm btn-light text-danger"><i class="bi bi-trash"></i></button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Servicios Adicionales -->
+        <div class="card card-sprint p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h6 class="fw-bold text-dark mb-0">SERVICIOS ADICIONALES (EXTRAS)</h6>
+                <button class="btn btn-outline-primary btn-sm px-3" style="border-radius: 10px; font-weight: 600;">
+                    <i class="bi bi-plus-lg"></i> Agregar Extra
+                </button>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle border-top">
+                    <thead class="table-light text-muted" style="font-size: 0.8rem;">
+                        <tr>
+                            <th>Servicio Extra</th>
+                            <th>Precio Fijo</th>
+                            <th>Comisión Empleado</th>
+                            <th class="text-end">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody style="font-size: 0.9rem;">
+                        <tr>
+                            <td class="fw-semibold text-dark">Encerado Premium</td>
+                            <td class="fw-bold text-dark">$5.00</td>
+                            <td class="text-success fw-semibold">+$2.00</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-light text-primary me-1"><i class="bi bi-pencil-square"></i></button>
+                                <button class="btn btn-sm btn-light text-danger"><i class="bi bi-trash"></i></button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
