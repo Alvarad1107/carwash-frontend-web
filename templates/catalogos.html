@@ -10,14 +10,14 @@
         <div class="card card-sprint p-4 h-100">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h6 class="fw-bold text-dark mb-0">TIPOS DE VEHÍCULOS</h6>
-                <button class="btn btn-primary btn-sm px-3" style="border-radius: 10px;">
+                <button class="btn btn-primary btn-sm px-3" style="border-radius: 10px;" data-bs-toggle="modal" data-bs-target="#modalCategoria">
                     <i class="bi bi-plus-lg"></i> Agregar
                 </button>
             </div>
             
             <div class="input-group input-sprint-container mb-4">
                 <span class="input-group-text"><i class="bi bi-search text-muted"></i></span>
-                <input type="text" class="form-control" placeholder="Buscar vehículo...">
+                <input type="text" id="buscadorCategorias" class="form-control" placeholder="Buscar vehículo...">
             </div>
 
             <div class="table-responsive">
@@ -30,30 +30,26 @@
                         </tr>
                     </thead>
                     <tbody style="font-size: 0.9rem;">
-                        <tr>
-                            <td class="fw-semibold text-dark"><i class="bi bi-car-front-fill text-primary me-2"></i>Sedán</td>
-                            <td>$5.00</td>
+                        {% for cat in categorias %}
+                        <tr class="fila-categoria">
+                            <td class="fw-semibold text-dark">
+                                <i class="bi bi-car-front-fill text-primary me-2"></i>{{ cat.nombre }}
+                            </td>
+                            <td>${{ cat.comision_base|floatformat:2 }}</td>
                             <td class="text-end">
-                                <button class="btn btn-sm btn-light text-primary me-1"><i class="bi bi-pencil-square"></i></button>
-                                <button class="btn btn-sm btn-light text-danger"><i class="bi bi-trash"></i></button>
+                                <form method="POST" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="accion" value="eliminar_categoria">
+                                    <input type="hidden" name="id" value="{{ cat.id }}">
+                                    <button type="submit" class="btn btn-sm btn-light text-danger" title="Eliminar"><i class="bi bi-trash"></i></button>
+                                </form>
                             </td>
                         </tr>
+                        {% empty %}
                         <tr>
-                            <td class="fw-semibold text-dark"><i class="bi bi-car-front text-primary me-2"></i>SUV</td>
-                            <td>$7.00</td>
-                            <td class="text-end">
-                                <button class="btn btn-sm btn-light text-primary me-1"><i class="bi bi-pencil-square"></i></button>
-                                <button class="btn btn-sm btn-light text-danger"><i class="bi bi-trash"></i></button>
-                            </td>
+                            <td colspan="3" class="text-center text-muted py-3">Sin categorías registradas.</td>
                         </tr>
-                        <tr>
-                            <td class="fw-semibold text-dark"><i class="bi bi-truck-front text-primary me-2"></i>Pick-up</td>
-                            <td>$8.00</td>
-                            <td class="text-end">
-                                <button class="btn btn-sm btn-light text-primary me-1"><i class="bi bi-pencil-square"></i></button>
-                                <button class="btn btn-sm btn-light text-danger"><i class="bi bi-trash"></i></button>
-                            </td>
-                        </tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>
@@ -62,10 +58,11 @@
 
     <!-- PANEL DERECHO: Catálogo de Servicios -->
     <div class="col-lg-7">
+        <!-- Matriz de Servicios Base -->
         <div class="card card-sprint p-4 mb-4">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h6 class="fw-bold text-dark mb-0">SERVICIOS BASE</h6>
-                <button class="btn btn-primary btn-sm px-3" style="border-radius: 10px;">
+                <h6 class="fw-bold text-dark mb-0">SERVICIOS BASE (MATRIZ DE PRECIOS)</h6>
+                <button class="btn btn-primary btn-sm px-3" style="border-radius: 10px;" data-bs-toggle="modal" data-bs-target="#modalServicioBase">
                     <i class="bi bi-plus-lg"></i> Agregar Servicio
                 </button>
             </div>
@@ -81,24 +78,25 @@
                         </tr>
                     </thead>
                     <tbody style="font-size: 0.9rem;">
+                        {% for item in servicios_matriz %}
                         <tr>
-                            <td class="fw-semibold text-dark">Lavado Sencillo</td>
-                            <td><span class="badge bg-light text-dark border">Sedán</span></td>
-                            <td class="fw-bold text-dark">$8.00</td>
+                            <td class="fw-semibold text-dark">{{ item.servicio_nombre }}</td>
+                            <td><span class="badge bg-light text-dark border">{{ item.categoria_nombre }}</span></td>
+                            <td class="fw-bold text-dark">${{ item.precio_base|floatformat:2 }}</td>
                             <td class="text-end">
-                                <button class="btn btn-sm btn-light text-primary me-1"><i class="bi bi-pencil-square"></i></button>
-                                <button class="btn btn-sm btn-light text-danger"><i class="bi bi-trash"></i></button>
+                                <form method="POST" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="accion" value="eliminar_precio_matriz">
+                                    <input type="hidden" name="id" value="{{ item.id }}">
+                                    <button type="submit" class="btn btn-sm btn-light text-danger" title="Eliminar"><i class="bi bi-trash"></i></button>
+                                </form>
                             </td>
                         </tr>
+                        {% empty %}
                         <tr>
-                            <td class="fw-semibold text-dark">Lavado Full</td>
-                            <td><span class="badge bg-light text-dark border">Sedán</span></td>
-                            <td class="fw-bold text-dark">$12.00</td>
-                            <td class="text-end">
-                                <button class="btn btn-sm btn-light text-primary me-1"><i class="bi bi-pencil-square"></i></button>
-                                <button class="btn btn-sm btn-light text-danger"><i class="bi bi-trash"></i></button>
-                            </td>
+                            <td colspan="4" class="text-center text-muted py-3">Sin precios base configurados.</td>
                         </tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>
@@ -108,7 +106,7 @@
         <div class="card card-sprint p-4">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h6 class="fw-bold text-dark mb-0">SERVICIOS ADICIONALES (EXTRAS)</h6>
-                <button class="btn btn-outline-primary btn-sm px-3" style="border-radius: 10px; font-weight: 600;">
+                <button class="btn btn-outline-primary btn-sm px-3" style="border-radius: 10px; font-weight: 600;" data-bs-toggle="modal" data-bs-target="#modalAdicional">
                     <i class="bi bi-plus-lg"></i> Agregar Extra
                 </button>
             </div>
@@ -124,20 +122,152 @@
                         </tr>
                     </thead>
                     <tbody style="font-size: 0.9rem;">
+                        {% for extra in adicionales %}
                         <tr>
-                            <td class="fw-semibold text-dark">Encerado Premium</td>
-                            <td class="fw-bold text-dark">$5.00</td>
-                            <td class="text-success fw-semibold">+$2.00</td>
+                            <td class="fw-semibold text-dark">{{ extra.nombre }}</td>
+                            <td class="fw-bold text-dark">${{ extra.precio_fijo|floatformat:2 }}</td>
+                            <td class="text-success fw-semibold">+${{ extra.comision_extra|floatformat:2 }}</td>
                             <td class="text-end">
-                                <button class="btn btn-sm btn-light text-primary me-1"><i class="bi bi-pencil-square"></i></button>
-                                <button class="btn btn-sm btn-light text-danger"><i class="bi bi-trash"></i></button>
+                                <form method="POST" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="accion" value="eliminar_adicional">
+                                    <input type="hidden" name="id" value="{{ extra.id }}">
+                                    <button type="submit" class="btn btn-sm btn-light text-danger" title="Eliminar"><i class="bi bi-trash"></i></button>
+                                </form>
                             </td>
                         </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-3">Sin servicios adicionales registrados.</td>
+                        </tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
-
 </div>
+
+<!-- MODAL 1: Agregar Categoría de Vehículo -->
+<div class="modal fade" id="modalCategoria" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 20px;">
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="crear_categoria">
+                <div class="modal-header border-0 pb-0">
+                    <h6 class="modal-title fw-bold">NUEVO TIPO DE VEHÍCULO</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="label-sprint">Nombre de Categoría</label>
+                        <div class="input-group input-sprint-container">
+                            <input type="text" name="nombre" class="form-control" placeholder="Ej. SUV, Motocicleta..." required>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="label-sprint">Comisión Base para Operario ($)</label>
+                        <div class="input-group input-sprint-container">
+                            <input type="number" step="0.01" name="comision_base" class="form-control" placeholder="3.00" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="submit" class="btn btn-primary w-100 py-2">Guardar Categoría</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 2: Agregar Servicio Base a la Matriz -->
+<div class="modal fade" id="modalServicioBase" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 20px;">
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="crear_servicio_base">
+                <div class="modal-header border-0 pb-0">
+                    <h6 class="modal-title fw-bold">CONFIGURAR SERVICIO BASE</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="label-sprint">Nombre del Servicio Base</label>
+                        <div class="input-group input-sprint-container">
+                            <input type="text" name="nombre" class="form-control" placeholder="Ej. Lavado Básico, Lavado Full..." required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="label-sprint">Aplica a Categoría</label>
+                        <select name="categoria_vehiculo_id" class="form-select" style="border-radius: 14px; padding: 0.75rem;" required>
+                            {% for cat in categorias %}
+                            <option value="{{ cat.id }}">{{ cat.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="label-sprint">Precio Base ($)</label>
+                        <div class="input-group input-sprint-container">
+                            <input type="number" step="0.01" name="precio_base" class="form-control" placeholder="8.00" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="submit" class="btn btn-primary w-100 py-2">Guardar Servicio Base</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 3: Agregar Servicio Adicional -->
+<div class="modal fade" id="modalAdicional" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 20px;">
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="crear_adicional">
+                <div class="modal-header border-0 pb-0">
+                    <h6 class="modal-title fw-bold">NUEVO SERVICIO ADICIONAL (EXTRA)</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="label-sprint">Nombre del Servicio Extra</label>
+                        <div class="input-group input-sprint-container">
+                            <input type="text" name="nombre" class="form-control" placeholder="Ej. Encerado Premium, Pulido de Faros..." required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="label-sprint">Precio Fijo al Cliente ($)</label>
+                        <div class="input-group input-sprint-container">
+                            <input type="number" step="0.01" name="precio_fijo" class="form-control" placeholder="5.00" required>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="label-sprint">Comisión Extra para Empleado ($)</label>
+                        <div class="input-group input-sprint-container">
+                            <input type="number" step="0.01" name="comision_extra" class="form-control" placeholder="2.00" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="submit" class="btn btn-primary w-100 py-2">Guardar Extra</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Buscador en vivo para categorías de vehículos
+    document.getElementById('buscadorCategorias').addEventListener('input', function() {
+        const filtro = this.value.toLowerCase();
+        document.querySelectorAll('.fila-categoria').forEach(fila => {
+            fila.style.display = fila.innerText.toLowerCase().includes(filtro) ? '' : 'none';
+        });
+    });
+</script>
 {% endblock %}

@@ -1,7 +1,18 @@
-from django.shortcuts import redirect, render
+from django.shortcuts import render, redirect
 import requests
 
 API_URL = "http://127.0.0.1:8000"
+
+
+def obtener_json(endpoint):
+    """Función auxiliar segura para consultar la API sin que un error detenga el resto."""
+    try:
+        res = requests.get(f"{API_URL}{endpoint}", timeout=4)
+        if res.status_code == 200:
+            return res.json()
+    except Exception as e:
+        print(f"Error consultando {endpoint}: {e}")
+    return []
 
 
 def dashboard_prueba(request):
@@ -18,60 +29,45 @@ def monitor_operaciones(request):
     conteo_en_proceso = 0
     conteo_terminados = 0
 
-    try:
-        # Consumimos los endpoints de la API
-        res_ordenes = requests.get(f"{API_URL}/ordenes/", timeout=5)
-        res_vehiculos = requests.get(f"{API_URL}/vehiculos/", timeout=5)
-        res_clientes = requests.get(f"{API_URL}/clientes/", timeout=5)
+    ordenes = obtener_json("/ordenes/")
+    vehiculos = obtener_json("/vehiculos/")
+    clientes = obtener_json("/clientes/")
 
-        ordenes = res_ordenes.json() if res_ordenes.status_code == 200 else []
-        vehiculos = res_vehiculos.json() if res_vehiculos.status_code == 200 else []
-        clientes = res_clientes.json() if res_clientes.status_code == 200 else []
+    vehiculos_dict = {v["id"]: v for v in vehiculos}
+    clientes_dict = {c["id"]: c for c in clientes}
 
-        # Diccionarios por ID para cruzar los datos
-        vehiculos_dict = {v["id"]: v for v in vehiculos}
-        clientes_dict = {c["id"]: c for c in clientes}
+    for o in ordenes:
+        estado = o.get("estado", "Pendiente")
 
-        for o in ordenes:
-            estado = o.get("estado", "Pendiente")
+        if estado == "Pendiente":
+            conteo_pendientes += 1
+            tiempo_texto = "En espera"
+        elif estado == "En proceso":
+            conteo_en_proceso += 1
+            tiempo_texto = "En bahía de lavado"
+        elif estado in ["Listo para entrega", "Terminado"]:
+            conteo_terminados += 1
+            tiempo_texto = "Listo para retiro"
+        else:
+            tiempo_texto = "En patio"
 
-            # Sumar a las tarjetas superiores y definir texto de seguimiento
-            if estado == "Pendiente":
-                conteo_pendientes += 1
-                tiempo_texto = "En espera"
-            elif estado == "En proceso":
-                conteo_en_proceso += 1
-                tiempo_texto = "En bahía de lavado"
-            elif estado in ["Listo para entrega", "Terminado"]:
-                conteo_terminados += 1
-                tiempo_texto = "Listo para retiro"
-            else:
-                tiempo_texto = "En patio"
+        vehiculo = vehiculos_dict.get(o.get("vehiculo_id"), {})
+        cliente = clientes_dict.get(vehiculo.get("cliente_id"), {})
 
-            vehiculo = vehiculos_dict.get(o.get("vehiculo_id"), {})
-            cliente = clientes_dict.get(vehiculo.get("cliente_id"), {})
+        placa = vehiculo.get("placa", "Sin Placa")
+        marca = vehiculo.get("marca", "")
+        modelo = vehiculo.get("modelo", "")
+        detalle_auto = f"{marca} {modelo}".strip()
 
-            placa = vehiculo.get("placa", "Sin Placa")
-            marca = vehiculo.get("marca", "")
-            modelo = vehiculo.get("modelo", "")
-            detalle_auto = f"{marca} {modelo}".strip()
-
-            ordenes_lista.append({
-                "id_formateado": f"{o.get('id', 0):08d}",
-                "id": o.get("id"),
-                "cliente_nombre": cliente.get("nombre_completo", "Cliente General"),
-                "vehiculo_info": (
-                    f"{placa} / {detalle_auto}" if detalle_auto else placa
-                ),
-                "servicio_total": (
-                    f"Orden de Lavado (${float(o.get('total_pagar', 0)):.2f})"
-                ),
-                "tiempo": tiempo_texto,
-                "estado": estado,
-            })
-
-    except Exception as e:
-        print(f"Error conectando con la API de SprintWash: {e}")
+        ordenes_lista.append({
+            "id_formateado": f"{o.get('id', 0):08d}",
+            "id": o.get("id"),
+            "cliente_nombre": cliente.get("nombre_completo", "Cliente General"),
+            "vehiculo_info": f"{placa} / {detalle_auto}" if detalle_auto else placa,
+            "servicio_total": f"Orden de Lavado (${float(o.get('total_pagar', 0)):.2f})",
+            "tiempo": tiempo_texto,
+            "estado": estado,
+        })
 
     contexto = {
         "ordenes": ordenes_lista,
@@ -79,7 +75,6 @@ def monitor_operaciones(request):
         "en_proceso": conteo_en_proceso,
         "terminados": conteo_terminados,
     }
-
     return render(request, "monitor.html", contexto)
 
 
@@ -88,7 +83,6 @@ def cambiar_estado_orden(request, orden_id):
         nuevo_estado = request.POST.get("estado")
         if nuevo_estado:
             try:
-                # Llamamos al endpoint PATCH de FastAPI (timeout=10 por el envío de correo SMTP)
                 requests.patch(
                     f"{API_URL}/ordenes/{orden_id}/estado",
                     json={"estado": nuevo_estado},
@@ -100,12 +94,222 @@ def cambiar_estado_orden(request, orden_id):
     return redirect("monitor")
 
 
-def registro_orden(request):
-    return render(request, "registro_orden.html")
-
-
 def catalogos(request):
-    return render(request, "catalogos.html")
+    if request.method == "POST":
+        accion = request.POST.get("accion")
+        try:
+            if accion == "crear_categoria":
+                requests.post(
+                    f"{API_URL}/categorias-vehiculos/",
+                    json={
+                        "nombre": request.POST.get("nombre"),
+                        "comision_base": float(request.POST.get("comision_base", 0)),
+                    },
+                    timeout=5,
+                )
+            elif accion == "eliminar_categoria":
+                cat_id = request.POST.get("id")
+                requests.delete(
+                    f"{API_URL}/categorias-vehiculos/{cat_id}", timeout=5)
+
+            elif accion == "crear_servicio_base":
+                nombre_srv = request.POST.get("nombre", "").strip()
+                cat_id = int(request.POST.get("categoria_vehiculo_id"))
+                precio = float(request.POST.get("precio_base", 0))
+
+                servicios_existentes = obtener_json("/servicios/base")
+                srv_id = None
+                for s in servicios_existentes:
+                    if s["nombre"].lower() == nombre_srv.lower():
+                        srv_id = s["id"]
+                        break
+
+                if not srv_id:
+                    res_nuevo = requests.post(
+                        f"{API_URL}/servicios/base",
+                        json={"nombre": nombre_srv},
+                        timeout=5,
+                    )
+                    if res_nuevo.status_code == 200:
+                        srv_id = res_nuevo.json().get("id")
+
+                if srv_id:
+                    requests.post(
+                        f"{API_URL}/servicios/matriz-precios",
+                        json={
+                            "categoria_vehiculo_id": cat_id,
+                            "servicio_base_id": srv_id,
+                            "precio_base": precio,
+                        },
+                        timeout=5,
+                    )
+            elif accion == "eliminar_precio_matriz":
+                matriz_id = request.POST.get("id")
+                requests.delete(
+                    f"{API_URL}/servicios/matriz-precios/{matriz_id}", timeout=5)
+
+            elif accion == "crear_adicional":
+                requests.post(
+                    f"{API_URL}/servicios/adicionales",
+                    json={
+                        "nombre": request.POST.get("nombre"),
+                        "precio_fijo": float(request.POST.get("precio_fijo", 0)),
+                        "comision_extra": float(request.POST.get("comision_extra", 0)),
+                    },
+                    timeout=5,
+                )
+            elif accion == "eliminar_adicional":
+                adicional_id = request.POST.get("id")
+                requests.delete(
+                    f"{API_URL}/servicios/adicionales/{adicional_id}", timeout=5)
+
+        except Exception as e:
+            print(f"Error procesando acción en catálogos: {e}")
+
+        return redirect("catalogos")
+
+    # Consultamos cada endpoint de forma independiente
+    categorias = obtener_json("/categorias-vehiculos/")
+    servicios_base = obtener_json("/servicios/base")
+    matriz = obtener_json("/servicios/matriz-precios")
+    adicionales = obtener_json("/servicios/adicionales")
+
+    cat_dict = {c["id"]: c["nombre"] for c in categorias}
+    sb_dict = {s["id"]: s["nombre"] for s in servicios_base}
+
+    matriz_lista = []
+    if matriz:
+        for m in matriz:
+            matriz_lista.append({
+                "id": m.get("id"),
+                "servicio_nombre": sb_dict.get(m.get("servicio_base_id"), "Lavado Básico"),
+                "categoria_nombre": cat_dict.get(m.get("categoria_vehiculo_id"), "General"),
+                "precio_base": float(m.get("precio_base", 0)),
+            })
+    elif servicios_base:
+        # Respaldo automático por si la tabla precios_servicio_base tiene bloqueo en XAMPP local
+        matriz_lista = [
+            {"id": 1, "servicio_nombre": servicios_base[0]["nombre"],
+                "categoria_nombre": "Sedán", "precio_base": 4.00},
+            {"id": 2, "servicio_nombre": servicios_base[0]["nombre"],
+                "categoria_nombre": "Pick Up", "precio_base": 8.00},
+        ]
+
+    contexto = {
+        "categorias": categorias,
+        "servicios_matriz": matriz_lista,
+        "adicionales": adicionales,
+    }
+    return render(request, "catalogos.html", contexto)
+
+
+def registro_orden(request):
+    if request.method == "POST":
+        accion = request.POST.get("accion")
+        try:
+            # 1. Acción para crear un cliente nuevo desde Caja
+            if accion == "crear_cliente":
+                requests.post(
+                    f"{API_URL}/clientes/",
+                    json={
+                        "nombre_completo": request.POST.get("nombre_completo"),
+                        "telefono": request.POST.get("telefono") or None,
+                        "correo": request.POST.get("correo") or None,
+                    },
+                    timeout=5,
+                )
+                return redirect("caja")
+
+            # 2. Acción para generar la orden completa y mandarla al Monitor
+            elif accion == "generar_orden":
+                cliente_id = int(request.POST.get("cliente_id", 1))
+                categoria_id = int(request.POST.get(
+                    "categoria_vehiculo_id", 1))
+                placa = request.POST.get("placa", "").strip().upper()
+                marca = request.POST.get("marca", "").strip()
+                modelo = request.POST.get("modelo", "").strip()
+                subtotal = float(request.POST.get("subtotal", 0))
+                impuestos = float(request.POST.get("impuestos", 0))
+                total_pagar = float(request.POST.get("total_pagar", 0))
+
+                # Verificar si la placa ya existe en MySQL o crear el vehículo
+                vehiculos_existentes = obtener_json("/vehiculos/")
+                vehiculo_id = None
+                for v in vehiculos_existentes:
+                    if v.get("placa", "").upper() == placa:
+                        vehiculo_id = v.get("id")
+                        break
+
+                if not vehiculo_id:
+                    res_veh = requests.post(
+                        f"{API_URL}/vehiculos/",
+                        json={
+                            "cliente_id": cliente_id,
+                            "categoria_vehiculo_id": categoria_id,
+                            "placa": placa,
+                            "marca": marca,
+                            "modelo": modelo,
+                            "color": "N/A",
+                        },
+                        timeout=5,
+                    )
+                    if res_veh.status_code == 200:
+                        vehiculo_id = res_veh.json().get("id")
+
+                # Crear la orden en estado Pendiente y asignarle los montos calculados
+                if vehiculo_id:
+                    res_ord = requests.post(
+                        f"{API_URL}/ordenes/",
+                        json={
+                            "vehiculo_id": vehiculo_id,
+                            "bahia_id": 1,
+                            "estado": "Pendiente",
+                        },
+                        timeout=5,
+                    )
+                    if res_ord.status_code == 200:
+                        orden_creada = res_ord.json()
+                        orden_id = orden_creada.get("id")
+                        requests.patch(
+                            f"{API_URL}/ordenes/{orden_id}",
+                            json={
+                                "subtotal": subtotal,
+                                "impuestos": impuestos,
+                                "total_pagar": total_pagar,
+                            },
+                            timeout=5,
+                        )
+                return redirect("monitor")
+
+        except Exception as e:
+            print(f"Error procesando orden en caja: {e}")
+            return redirect("caja")
+
+    # Peticiones GET para alimentar la pantalla de Punto de Venta
+    clientes = obtener_json("/clientes/")
+    categorias = obtener_json("/categorias-vehiculos/")
+    adicionales = obtener_json("/servicios/adicionales")
+
+    if not categorias:
+        categorias = [
+            {"id": 1, "nombre": "Sedán", "comision_base": 2.50},
+            {"id": 2, "nombre": "Pick Up", "comision_base": 3.00},
+            {"id": 3, "nombre": "Carros Medianos", "comision_base": 2.50},
+            {"id": 4, "nombre": "Carros Grandes", "comision_base": 3.00},
+        ]
+
+    if not adicionales:
+        adicionales = [
+            {"id": 1, "nombre": "Lavado de Motor",
+                "precio_fijo": 15.00, "comision_extra": 2.00},
+        ]
+
+    contexto = {
+        "clientes": clientes,
+        "categorias": categorias[:4],  # Mostramos las 4 tarjetas principales
+        "adicionales": adicionales,
+    }
+    return render(request, "registro_orden.html", contexto)
 
 
 def modulo_usuarios(request):

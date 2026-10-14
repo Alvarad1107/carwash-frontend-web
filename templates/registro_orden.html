@@ -1,168 +1,297 @@
 {% extends 'base.html' %}
 
+{% block nav_title %}PUNTO DE VENTA / NUEVA ORDEN{% endblock %}
+
 {% block content %}
-<div class="row g-4 mt-2">
-    
-    <!-- COLUMNA 1: Datos del Cliente -->
-    <div class="col-lg-3">
-        <div class="card card-sprint p-4 h-100">
-            <h6 class="fw-bold mb-4 text-dark">DATOS DEL CLIENTE</h6>
-            
-            <div class="input-group input-sprint-container mb-4">
-                <span class="input-group-text"><i class="bi bi-search"></i></span>
-                <input type="text" class="form-control" placeholder="Buscar (Nombre/Teléfono)">
-            </div>
-            
-            <p class="text-muted small fw-bold mb-3" style="letter-spacing: 0.5px;">RECIENTES</p>
-            
-            <div class="list-group list-group-flush mb-4">
-                <!-- Cliente 1 -->
-                <button class="list-group-item list-group-item-action bg-transparent border-0 px-0 d-flex align-items-center gap-3 mb-2">
-                    <i class="bi bi-person-circle fs-3 text-muted"></i>
-                    <div class="text-start">
-                        <span class="d-block fw-bold text-dark" style="font-size: 0.95rem;">Juan Pérez</span>
-                        <span class="d-block text-muted" style="font-size: 0.8rem;">7777-8888</span>
-                    </div>
+<form method="POST" id="formGenerarOrden">
+    {% csrf_token %}
+    <input type="hidden" name="accion" value="generar_orden">
+    <input type="hidden" name="cliente_id" id="inputClienteId" value="{{ clientes.0.id|default:1 }}">
+    <input type="hidden" name="categoria_vehiculo_id" id="inputCategoriaId" value="{{ categorias.0.id|default:1 }}">
+    <input type="hidden" name="subtotal" id="inputSubtotal" value="8.00">
+    <input type="hidden" name="impuestos" id="inputImpuestos" value="1.04">
+    <input type="hidden" name="total_pagar" id="inputTotalPagar" value="9.04">
+
+    <div class="row g-4 mt-2">
+        
+        <!-- COLUMNA 1: Datos del Cliente -->
+        <div class="col-lg-3">
+            <div class="card card-sprint p-4 h-100 d-flex flex-column">
+                <h6 class="fw-bold mb-4 text-dark">DATOS DEL CLIENTE</h6>
+                
+                <div class="input-group input-sprint-container mb-4">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" id="buscadorClientesCaja" class="form-control" placeholder="Buscar (Nombre/Teléfono)">
+                </div>
+                
+                <p class="text-muted small fw-bold mb-3" style="letter-spacing: 0.5px;">CLIENTES REGISTRADOS</p>
+                
+                <div class="list-group list-group-flush mb-4 overflow-auto" style="max-height: 280px;">
+                    {% for c in clientes %}
+                    <button type="button"
+                            class="list-group-item list-group-item-action border-0 rounded-3 px-2 py-2 d-flex align-items-center gap-3 mb-2 item-cliente-caja {% if forloop.first %}bg-primary bg-opacity-10 border-start border-primary border-4{% else %}bg-transparent{% endif %}"
+                            data-id="{{ c.id }}"
+                            data-nombre="{{ c.nombre_completo }}">
+                        <i class="bi bi-person-circle fs-3 text-sprint"></i>
+                        <div class="text-start overflow-hidden">
+                            <span class="d-block fw-bold text-dark text-truncate" style="font-size: 0.9rem;">{{ c.nombre_completo }}</span>
+                            <span class="d-block text-muted text-truncate" style="font-size: 0.78rem;">{{ c.telefono|default:c.correo }}</span>
+                        </div>
+                    </button>
+                    {% empty %}
+                    <p class="text-muted small">No hay clientes registrados.</p>
+                    {% endfor %}
+                </div>
+                
+                <button type="button" class="btn btn-outline-primary w-100 mt-auto py-2" style="border-radius: 12px; font-weight: 600;" data-bs-toggle="modal" data-bs-target="#modalNuevoCliente">
+                    <i class="bi bi-plus-lg me-2"></i> Nuevo Cliente
                 </button>
-                <!-- Cliente 2 -->
-                <button class="list-group-item list-group-item-action bg-transparent border-0 px-0 d-flex align-items-center gap-3">
-                    <i class="bi bi-person-circle fs-3 text-muted"></i>
-                    <div class="text-start">
-                        <span class="d-block fw-bold text-dark" style="font-size: 0.95rem;">María López</span>
-                        <span class="d-block text-muted" style="font-size: 0.8rem;">juan.perez@email.com</span>
+            </div>
+        </div>
+
+        <!-- COLUMNA 2: Datos del Vehículo y Servicios -->
+        <div class="col-lg-5">
+            <div class="card card-sprint p-4 h-100">
+                <h6 class="fw-bold mb-4 text-dark">VEHÍCULO Y SERVICIOS</h6>
+                
+                <!-- Selector Visual de Tipo de Auto -->
+                <div class="row g-3 mb-4 text-center">
+                    {% for cat in categorias %}
+                    <div class="col-6 col-md-3">
+                        <div class="border rounded-4 p-3 tarjeta-categoria {% if forloop.first %}border-primary bg-primary bg-opacity-10{% endif %}"
+                             style="cursor:pointer; border-width: 2px !important;"
+                             data-id="{{ cat.id }}"
+                             data-nombre="{{ cat.nombre }}"
+                             data-precio="{% if forloop.first %}8.00{% elif forloop.counter == 2 %}12.00{% else %}10.00{% endif %}">
+                            <i class="bi {% if 'Pick' in cat.nombre or 'Grande' in cat.nombre %}bi-truck-front{% elif 'Micro' in cat.nombre %}bi-bus-front{% else %}bi-car-front-fill{% endif %} fs-3 {% if forloop.first %}text-primary{% else %}text-muted{% endif %} mb-2 icono-cat"></i>
+                            <span class="d-block fw-bold text-dark text-truncate" style="font-size: 0.82rem;">{{ cat.nombre }}</span>
+                            <span class="d-block text-muted" style="font-size: 0.75rem;">
+                                Base: ${% if forloop.first %}8.00{% elif forloop.counter == 2 %}12.00{% else %}10.00{% endif %}
+                            </span>
+                        </div>
                     </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Inputs del Auto -->
+                <div class="row g-3 mb-4">
+                    <div class="col-12 text-start">
+                        <label class="label-sprint">Placa del Vehículo</label>
+                        <div class="input-group input-sprint-container">
+                            <span class="input-group-text"><i class="bi bi-123 text-muted"></i></span>
+                            <input type="text" name="placa" id="inputPlaca" class="form-control text-uppercase" placeholder="P-123456" required>
+                        </div>
+                    </div>
+                    <div class="col-6 text-start">
+                        <label class="label-sprint">Marca</label>
+                        <div class="input-group input-sprint-container">
+                            <input type="text" name="marca" id="inputMarca" class="form-control" placeholder="Toyota" required>
+                        </div>
+                    </div>
+                    <div class="col-6 text-start">
+                        <label class="label-sprint">Modelo</label>
+                        <div class="input-group input-sprint-container">
+                            <input type="text" name="modelo" id="inputModelo" class="form-control" placeholder="Corolla" required>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Selección Rápida de Servicios Adicionales -->
+                <h6 class="fw-bold mb-3 text-dark mt-2">SERVICIOS ADICIONALES</h6>
+                {% for extra in adicionales %}
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input switch-extra" type="checkbox" role="switch"
+                           id="extra_{{ extra.id }}"
+                           data-nombre="{{ extra.nombre }}"
+                           data-precio="{{ extra.precio_fijo }}">
+                    <label class="form-check-label ms-2 text-dark" for="extra_{{ extra.id }}">
+                        {{ extra.nombre }} <span class="text-muted small">(+${{ extra.precio_fijo|floatformat:2 }})</span>
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- COLUMNA 3: Resumen y Cobro -->
+        <div class="col-lg-4">
+            <div class="card card-sprint p-4 h-100 d-flex flex-column" style="background-color: var(--sprint-blue);">
+                <h6 class="fw-bold mb-4 text-white text-opacity-75">RESUMEN DE ORDEN</h6>
+                
+                <div class="bg-white bg-opacity-10 rounded-4 p-3 mb-4 text-white">
+                    <p class="mb-1 text-white text-opacity-50 small">CLIENTE:</p>
+                    <p class="fw-bold mb-3 fs-5" id="resumenCliente">{{ clientes.0.nombre_completo|default:"Seleccione un cliente" }}</p>
+                    
+                    <p class="mb-1 text-white text-opacity-50 small">VEHÍCULO:</p>
+                    <p class="fw-bold mb-0">
+                        <span id="resumenAutoTexto">Vehículo ({{ categorias.0.nombre|default:"Sedán" }})</span><br>
+                        <span class="fw-normal text-white text-opacity-75" id="resumenPlacaTexto">Placa: ---</span>
+                    </p>
+                </div>
+
+                <div class="text-white px-2 mb-4">
+                    <div class="d-flex justify-content-between mb-2 small">
+                        <span class="text-white text-opacity-75" id="resumenServicioBaseNombre">Lavado Básico ({{ categorias.0.nombre|default:"Sedán" }})</span>
+                        <span class="fw-semibold" id="resumenServicioBasePrecio">$8.00</span>
+                    </div>
+                    
+                    <div id="contenedorExtrasResumen"></div>
+                    
+                    <hr class="border-white border-opacity-25">
+                    
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-white text-opacity-75">Subtotal</span>
+                        <span id="resumenSubtotal">$8.00</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span class="text-white text-opacity-75">Impuestos (13%)</span>
+                        <span id="resumenImpuestos">$1.04</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-4">
+                        <span class="fw-bold text-white text-opacity-75 fs-6">TOTAL A PAGAR</span>
+                        <span class="fw-bold text-white fs-2" id="resumenTotal">$9.04</span>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-light w-100 py-3 mt-auto d-flex justify-content-center align-items-center gap-2" style="border-radius: 14px; font-weight: 700; color: var(--sprint-blue);">
+                    <span>GENERAR ORDEN</span>
+                    <i class="bi bi-arrow-right"></i>
                 </button>
             </div>
-            
-            <button class="btn btn-outline-primary w-100 mt-auto py-2" style="border-radius: 12px; font-weight: 600;">
-                <i class="bi bi-plus-lg me-2"></i> Nuevo Cliente
-            </button>
+        </div>
+
+    </div>
+</form>
+
+<!-- MODAL: Nuevo Cliente -->
+<div class="modal fade" id="modalNuevoCliente" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 20px;">
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="crear_cliente">
+                <div class="modal-header border-0 pb-0">
+                    <h6 class="modal-title fw-bold">REGISTRAR NUEVO CLIENTE</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="label-sprint">Nombre Completo</label>
+                        <div class="input-group input-sprint-container">
+                            <input type="text" name="nombre_completo" class="form-control" placeholder="Ej. Carlos Mendoza" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="label-sprint">Teléfono</label>
+                        <div class="input-group input-sprint-container">
+                            <input type="text" name="telefono" class="form-control" placeholder="7777-8888">
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="label-sprint">Correo Electrónico (Para Pre-Factura)</label>
+                        <div class="input-group input-sprint-container">
+                            <input type="email" name="correo" class="form-control" placeholder="cliente@correo.com">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="submit" class="btn btn-primary w-100 py-2">Guardar Cliente</button>
+                </div>
+            </form>
         </div>
     </div>
-
-    <!-- COLUMNA 2: Datos del Vehículo y Servicios -->
-    <div class="col-lg-5">
-        <div class="card card-sprint p-4 h-100">
-            <h6 class="fw-bold mb-4 text-dark">VEHÍCULO Y SERVICIOS</h6>
-            
-            <!-- Selector Visual de Tipo de Auto -->
-            <div class="row g-3 mb-4 text-center">
-                <!-- Sedán (Seleccionado) -->
-                <div class="col-6 col-md-3">
-                    <div class="border rounded-4 p-3 border-primary bg-primary bg-opacity-10" style="cursor:pointer; border-width: 2px !important;">
-                        <i class="bi bi-car-front-fill fs-3 text-primary mb-2"></i>
-                        <span class="d-block fw-bold text-dark" style="font-size: 0.85rem;">Sedán</span>
-                        <span class="d-block text-muted" style="font-size: 0.75rem;">$3.00</span>
-                    </div>
-                </div>
-                <!-- SUV (Inactivo) -->
-                <div class="col-6 col-md-3">
-                    <div class="border rounded-4 p-3" style="cursor:pointer;">
-                        <i class="bi bi-car-front fs-3 text-muted mb-2"></i>
-                        <span class="d-block fw-bold text-dark" style="font-size: 0.85rem;">SUV</span>
-                        <span class="d-block text-muted" style="font-size: 0.75rem;">$3.00</span>
-                    </div>
-                </div>
-                <!-- Pick-up (Inactivo) -->
-                <div class="col-6 col-md-3">
-                    <div class="border rounded-4 p-3" style="cursor:pointer;">
-                        <i class="bi bi-truck-front fs-3 text-muted mb-2"></i>
-                        <span class="d-block fw-bold text-dark" style="font-size: 0.85rem;">Pick-up</span>
-                        <span class="d-block text-muted" style="font-size: 0.75rem;">$7.00</span>
-                    </div>
-                </div>
-                <!-- Microbús (Inactivo) -->
-                <div class="col-6 col-md-3">
-                    <div class="border rounded-4 p-3" style="cursor:pointer;">
-                        <i class="bi bi-bus-front fs-3 text-muted mb-2"></i>
-                        <span class="d-block fw-bold text-dark" style="font-size: 0.85rem;">Microbús</span>
-                        <span class="d-block text-muted" style="font-size: 0.75rem;">$7.00</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Inputs del Auto -->
-            <div class="row g-3 mb-4">
-                <div class="col-12 text-start">
-                    <label class="label-sprint">Placa</label>
-                    <div class="input-group input-sprint-container">
-                        <span class="input-group-text"><i class="bi bi-123 text-muted"></i></span>
-                        <input type="text" class="form-control text-uppercase" placeholder="P-123456">
-                    </div>
-                </div>
-                <div class="col-6 text-start">
-                    <label class="label-sprint">Marca</label>
-                    <div class="input-group input-sprint-container">
-                        <input type="text" class="form-control" placeholder="Toyota">
-                    </div>
-                </div>
-                <div class="col-6 text-start">
-                    <label class="label-sprint">Modelo</label>
-                    <div class="input-group input-sprint-container">
-                        <input type="text" class="form-control" placeholder="Corolla">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Selección Rápida de Servicios -->
-            <h6 class="fw-bold mb-3 text-dark mt-2">SERVICIOS ADICIONALES</h6>
-            <div class="form-check form-switch mb-2">
-                <input class="form-check-input" type="checkbox" role="switch" id="serv1" checked>
-                <label class="form-check-label ms-2 text-dark" for="serv1">Encerado Premium <span class="text-muted small">(+$5.00)</span></label>
-            </div>
-            <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" role="switch" id="serv2">
-                <label class="form-check-label ms-2 text-dark" for="serv2">Pulido de Faros <span class="text-muted small">(+$10.00)</span></label>
-            </div>
-        </div>
-    </div>
-
-    <!-- COLUMNA 3: Resumen y Cobro -->
-    <div class="col-lg-4">
-        <div class="card card-sprint p-4 h-100" style="background-color: var(--sprint-blue);">
-            <h6 class="fw-bold mb-4 text-white text-opacity-75">RESUMEN DE ORDEN</h6>
-            
-            <div class="bg-white bg-opacity-10 rounded-4 p-3 mb-4 text-white">
-                <p class="mb-1 text-white text-opacity-50 small">CLIENTE:</p>
-                <p class="fw-bold mb-3 fs-5">Juan Pérez</p>
-                
-                <p class="mb-1 text-white text-opacity-50 small">VEHÍCULO:</p>
-                <p class="fw-bold mb-3">Toyota Corolla (Sedán) <br><span class="fw-normal text-opacity-75">Placa: P-123456</span></p>
-            </div>
-
-            <div class="text-white px-2 mb-4">
-                <div class="d-flex justify-content-between mb-2 small">
-                    <span class="text-white text-opacity-75">Lavado Full (Sedán)</span>
-                    <span class="fw-semibold">$12.00</span>
-                </div>
-                <div class="d-flex justify-content-between mb-3 small">
-                    <span class="text-white text-opacity-75">Encerado Premium</span>
-                    <span class="fw-semibold">$5.00</span>
-                </div>
-                
-                <hr class="border-white border-opacity-25">
-                
-                <div class="d-flex justify-content-between mb-1">
-                    <span class="text-white text-opacity-75">Subtotal</span>
-                    <span>$17.00</span>
-                </div>
-                <div class="d-flex justify-content-between mb-3">
-                    <span class="text-white text-opacity-75">Impuestos</span>
-                    <span>$2.21</span>
-                </div>
-
-                <div class="d-flex justify-content-between align-items-center mt-4">
-                    <span class="fw-bold text-white text-opacity-75 fs-6">TOTAL A PAGAR</span>
-                    <span class="fw-bold text-white fs-2">$19.21</span>
-                </div>
-            </div>
-
-            <button class="btn btn-light w-100 py-3 mt-auto d-flex justify-content-center align-items-center gap-2" style="border-radius: 14px; font-weight: 700; color: var(--sprint-blue);">
-                <span>GENERAR ORDEN</span>
-                <i class="bi bi-arrow-right"></i>
-            </button>
-        </div>
-    </div>
-
 </div>
+
+<!-- Script para cálculo y actualización del Resumen en Tiempo Real -->
+<script>
+    let categoriaActualNombre = "{{ categorias.0.nombre|default:'Sedán' }}";
+    let precioBaseActual = 8.00;
+
+    // 1. Selección de Cliente
+    document.querySelectorAll('.item-cliente-caja').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.item-cliente-caja').forEach(b => {
+                b.classList.remove('bg-primary', 'bg-opacity-10', 'border-start', 'border-primary', 'border-4');
+                b.classList.add('bg-transparent');
+            });
+            this.classList.remove('bg-transparent');
+            this.classList.add('bg-primary', 'bg-opacity-10', 'border-start', 'border-primary', 'border-4');
+
+            document.getElementById('inputClienteId').value = this.dataset.id;
+            document.getElementById('resumenCliente').innerText = this.dataset.nombre;
+        });
+    });
+
+    // 2. Buscador de Clientes
+    document.getElementById('buscadorClientesCaja').addEventListener('input', function() {
+        const q = this.value.toLowerCase();
+        document.querySelectorAll('.item-cliente-caja').forEach(btn => {
+            btn.style.display = btn.innerText.toLowerCase().includes(q) ? '' : 'none';
+        });
+    });
+
+    // 3. Selección de Categoría de Vehículo
+    document.querySelectorAll('.tarjeta-categoria').forEach(card => {
+        card.addEventListener('click', function() {
+            document.querySelectorAll('.tarjeta-categoria').forEach(c => {
+                c.classList.remove('border-primary', 'bg-primary', 'bg-opacity-10');
+                c.querySelector('.icono-cat').classList.remove('text-primary');
+                c.querySelector('.icono-cat').classList.add('text-muted');
+            });
+            this.classList.add('border-primary', 'bg-primary', 'bg-opacity-10');
+            this.querySelector('.icono-cat').classList.remove('text-muted');
+            this.querySelector('.icono-cat').classList.add('text-primary');
+
+            categoriaActualNombre = this.dataset.nombre;
+            precioBaseActual = parseFloat(this.dataset.precio) || 8.00;
+            document.getElementById('inputCategoriaId').value = this.dataset.id;
+
+            actualizarResumen();
+        });
+    });
+
+    // 4. Inputs de Vehículo y Switches de Servicios Extras
+    ['inputPlaca', 'inputMarca', 'inputModelo'].forEach(id => {
+        document.getElementById(id).addEventListener('input', actualizarResumen);
+    });
+    document.querySelectorAll('.switch-extra').forEach(sw => {
+        sw.addEventListener('change', actualizarResumen);
+    });
+
+    function actualizarResumen() {
+        const placa = document.getElementById('inputPlaca').value.toUpperCase() || '---';
+        const marca = document.getElementById('inputMarca').value.trim();
+        const modelo = document.getElementById('inputModelo').value.trim();
+        const nombreAuto = (marca || modelo) ? `${marca} ${modelo}`.trim() : 'Vehículo';
+
+        document.getElementById('resumenAutoTexto').innerText = `${nombreAuto} (${categoriaActualNombre})`;
+        document.getElementById('resumenPlacaTexto').innerText = `Placa: ${placa}`;
+        document.getElementById('resumenServicioBaseNombre').innerText = `Lavado Básico (${categoriaActualNombre})`;
+        document.getElementById('resumenServicioBasePrecio').innerText = `$${precioBaseActual.toFixed(2)}`;
+
+        let subtotal = precioBaseActual;
+        const contenedorExtras = document.getElementById('contenedorExtrasResumen');
+        contenedorExtras.innerHTML = '';
+
+        document.querySelectorAll('.switch-extra:checked').forEach(sw => {
+            const pExtra = parseFloat(sw.dataset.precio) || 0;
+            subtotal += pExtra;
+            contenedorExtras.innerHTML += `
+                <div class="d-flex justify-content-between mb-2 small">
+                    <span class="text-white text-opacity-75">${sw.dataset.nombre}</span>
+                    <span class="fw-semibold">$${pExtra.toFixed(2)}</span>
+                </div>`;
+        });
+
+        const impuestos = subtotal * 0.13;
+        const total = subtotal + impuestos;
+
+        document.getElementById('resumenSubtotal').innerText = `$${subtotal.toFixed(2)}`;
+        document.getElementById('resumenImpuestos').innerText = `$${impuestos.toFixed(2)}`;
+        document.getElementById('resumenTotal').innerText = `$${total.toFixed(2)}`;
+
+        document.getElementById('inputSubtotal').value = subtotal.toFixed(2);
+        document.getElementById('inputImpuestos').value = impuestos.toFixed(2);
+        document.getElementById('inputTotalPagar').value = total.toFixed(2);
+    }
+</script>
 {% endblock %}
