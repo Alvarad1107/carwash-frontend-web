@@ -11,7 +11,7 @@
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="text-muted fw-bold mb-1">PENDIENTE</h6>
-                    <h2 class="mb-0 fw-bold text-secondary">5</h2>
+                    <h2 class="mb-0 fw-bold text-secondary">{{ pendientes }}</h2>
                 </div>
                 <div class="bg-secondary rounded-circle p-3 text-white d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
                     <i class="bi bi-clock-history fs-4"></i>
@@ -26,7 +26,7 @@
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="text-muted fw-bold mb-1">EN PROCESO</h6>
-                    <h2 class="mb-0 fw-bold" style="color: var(--sprint-blue);">8</h2>
+                    <h2 class="mb-0 fw-bold" style="color: var(--sprint-blue);">{{ en_proceso }}</h2>
                 </div>
                 <div class="rounded-circle p-3 text-white d-flex align-items-center justify-content-center" style="background-color: var(--sprint-blue); width: 50px; height: 50px;">
                     <i class="bi bi-car-front-fill fs-4"></i>
@@ -41,7 +41,7 @@
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="text-muted fw-bold mb-1">TERMINADO</h6>
-                    <h2 class="mb-0 fw-bold text-success">12</h2>
+                    <h2 class="mb-0 fw-bold text-success">{{ terminados }}</h2>
                 </div>
                 <div class="bg-success rounded-circle p-3 text-white d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
                     <i class="bi bi-check-circle-fill fs-4"></i>
@@ -82,36 +82,31 @@
                 </tr>
             </thead>
             <tbody style="font-size: 0.95rem;">
-                <!-- Fila 1: En Proceso -->
+                {% for orden in ordenes %}
                 <tr>
-                    <td><a href="#" class="text-sprint text-decoration-none fw-bold">011300016</a></td>
-                    <td>Alex. Rvania</td>
-                    <td>RC P600 / VGRRA</td>
-                    <td>Lavado Full</td>
-                    <td>14 min</td>
-                    <td><span class="badge rounded-pill" style="background-color: var(--sprint-blue); padding: 0.5em 1em;">EN PROCESO</span></td>
+                    <td><a href="#" class="text-sprint text-decoration-none fw-bold">{{ orden.id_formateado }}</a></td>
+                    <td>{{ orden.cliente_nombre }}</td>
+                    <td>{{ orden.vehiculo_info }}</td>
+                    <td>{{ orden.servicio_total }}</td>
+                    <td>{{ orden.tiempo }}</td>
+                    <td>
+                        {% if orden.estado == "En proceso" %}
+                            <span class="badge rounded-pill" style="background-color: var(--sprint-blue); padding: 0.5em 1em;">EN PROCESO</span>
+                        {% elif orden.estado == "Pendiente" %}
+                            <span class="badge rounded-pill bg-secondary" style="padding: 0.5em 1em;">PENDIENTE</span>
+                        {% else %}
+                            <span class="badge rounded-pill bg-light text-dark border" style="padding: 0.5em 1em;">TERMINADO</span>
+                        {% endif %}
+                    </td>
                     <td><button class="btn btn-sm btn-light text-muted"><i class="bi bi-three-dots"></i></button></td>
                 </tr>
-                <!-- Fila 2: Pendiente -->
+                {% empty %}
                 <tr>
-                    <td><a href="#" class="text-sprint text-decoration-none fw-bold">011300012</a></td>
-                    <td>Juan Pérez</td>
-                    <td>P-123456 / Corolla</td>
-                    <td>Lavado Sencillo</td>
-                    <td>11 min</td>
-                    <td><span class="badge rounded-pill bg-secondary" style="padding: 0.5em 1em;">PENDIENTE</span></td>
-                    <td><button class="btn btn-sm btn-light text-muted"><i class="bi bi-three-dots"></i></button></td>
+                    <td colspan="7" class="text-center text-muted py-4">
+                        No hay órdenes registradas en la base de datos o la API está apagada.
+                    </td>
                 </tr>
-                <!-- Fila 3: Terminado -->
-                <tr>
-                    <td><a href="#" class="text-sprint text-decoration-none fw-bold">011300078</a></td>
-                    <td>Meara Doulestonez</td>
-                    <td>RC P250 / ADK</td>
-                    <td>Encerado Premium</td>
-                    <td>19 min</td>
-                    <td><span class="badge rounded-pill bg-light text-dark border" style="padding: 0.5em 1em;">TERMINADO</span></td>
-                    <td><button class="btn btn-sm btn-light text-muted"><i class="bi bi-three-dots"></i></button></td>
-                </tr>
+                {% endfor %}
             </tbody>
         </table>
     </div>
