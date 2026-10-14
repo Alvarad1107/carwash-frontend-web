@@ -16,18 +16,27 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-# Importa tu vista
-from panel_admin.views import dashboard_prueba, login_prueba, monitor_operaciones, registro_orden, catalogos, modulo_usuarios
+from panel_admin.views import (
+    cambiar_estado_orden,
+    catalogos,
+    dashboard_prueba,
+    login_prueba,
+    modulo_usuarios,
+    monitor_operaciones,
+    registro_orden,
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', dashboard_prueba, name='dashboard'),  # Ruta principal
-    path('login/', login_prueba, name='login'),  # Ruta para la página de login
-    # Ruta para la página de monitorización
+    path('', dashboard_prueba, name='dashboard'),
+    path('login/', login_prueba, name='login'),
     path('monitor/', monitor_operaciones, name='monitor'),
-    # Ruta para la página de registro de órdenes
+    path(
+        'monitor/estado/<int:orden_id>/',
+        cambiar_estado_orden,
+        name='cambiar_estado_orden',
+    ),
     path('caja/', registro_orden, name='caja'),
-    # Ruta para la página de catálogos
     path('catalogos/', catalogos, name='catalogos'),
     path('usuarios/', modulo_usuarios, name='usuarios'),
 ]

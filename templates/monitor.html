@@ -1,8 +1,8 @@
 {% extends 'base.html' %}
 
-{% block content %}
-<!-- Título de la Pantalla -->
+{% block nav_title %}MONITOR DE OPERACIONES{% endblock %}
 
+{% block content %}
 <!-- Tarjetas de Resumen -->
 <div class="row mb-4">
     <!-- Tarjeta Pendiente -->
@@ -53,23 +53,23 @@
 
 <!-- Tabla de Control -->
 <div class="card card-sprint p-4">
-    <div class="d-flex justify-content-between mb-4">
-        <!-- Buscador -->
-        <div class="input-group" style="max-width: 350px;">
-            <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
-            <input type="text" class="form-control border-start-0" placeholder="Buscar Orden, Placa, Cliente...">
+    <div class="d-flex flex-wrap justify-content-between gap-3 mb-4">
+        <!-- Buscador en Tiempo Real -->
+        <div class="input-group input-sprint-container" style="max-width: 380px;">
+            <span class="input-group-text"><i class="bi bi-search text-muted"></i></span>
+            <input type="text" id="buscadorMonitor" class="form-control" placeholder="Buscar Orden, Placa, Cliente...">
         </div>
-        <!-- Filtro -->
-        <select class="form-select text-muted" style="max-width: 200px;">
-            <option selected>Filtrar por Estado</option>
-            <option value="1">Pendiente</option>
-            <option value="2">En Proceso</option>
-            <option value="3">Terminado</option>
+        <!-- Filtro por Estado -->
+        <select id="filtroEstadoMonitor" class="form-select text-muted" style="max-width: 220px; border-radius: 14px;">
+            <option value="TODOS" selected>Todos los Estados</option>
+            <option value="Pendiente">Pendiente</option>
+            <option value="En proceso">En Proceso</option>
+            <option value="Listo para entrega">Terminado / Listo</option>
         </select>
     </div>
     
-    <div class="table-responsive">
-        <table class="table table-hover align-middle">
+    <div class="table-responsive" style="overflow: visible;">
+        <table class="table table-hover align-middle" id="tablaMonitor">
             <thead class="table-light text-muted" style="font-size: 0.9rem;">
                 <tr>
                     <th>Orden ID</th>
@@ -78,27 +78,64 @@
                     <th>Servicio</th>
                     <th>Tiempo</th>
                     <th>Estado Actual</th>
-                    <th>Acciones</th>
+                    <th class="text-end pe-3">Acciones</th>
                 </tr>
             </thead>
             <tbody style="font-size: 0.95rem;">
                 {% for orden in ordenes %}
-                <tr>
-                    <td><a href="#" class="text-sprint text-decoration-none fw-bold">{{ orden.id_formateado }}</a></td>
-                    <td>{{ orden.cliente_nombre }}</td>
+                <tr class="fila-orden" data-estado="{{ orden.estado }}">
+                    <td><span class="text-sprint fw-bold">#{{ orden.id_formateado }}</span></td>
+                    <td class="fw-semibold text-dark">{{ orden.cliente_nombre }}</td>
                     <td>{{ orden.vehiculo_info }}</td>
                     <td>{{ orden.servicio_total }}</td>
-                    <td>{{ orden.tiempo }}</td>
+                    <td class="text-muted">{{ orden.tiempo }}</td>
                     <td>
                         {% if orden.estado == "En proceso" %}
                             <span class="badge rounded-pill" style="background-color: var(--sprint-blue); padding: 0.5em 1em;">EN PROCESO</span>
                         {% elif orden.estado == "Pendiente" %}
                             <span class="badge rounded-pill bg-secondary" style="padding: 0.5em 1em;">PENDIENTE</span>
                         {% else %}
-                            <span class="badge rounded-pill bg-light text-dark border" style="padding: 0.5em 1em;">TERMINADO</span>
+                            <span class="badge rounded-pill bg-success bg-opacity-10 text-success border border-success" style="padding: 0.5em 1em;">TERMINADO</span>
                         {% endif %}
                     </td>
-                    <td><button class="btn btn-sm btn-light text-muted"><i class="bi bi-three-dots"></i></button></td>
+                    <td class="text-end pe-3">
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-light text-dark border shadow-sm px-2" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" title="Cambiar Estado">
+                                <i class="bi bi-three-dots"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-4 p-2" style="min-width: 210px;">
+                                <li><h6 class="dropdown-header text-uppercase small fw-bold text-muted">Cambiar estado a:</h6></li>
+                                <li>
+                                    <form method="POST" action="{% url 'cambiar_estado_orden' orden.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="estado" value="Pendiente">
+                                        <button type="submit" class="dropdown-item rounded-3 py-2 d-flex align-items-center gap-2 {% if orden.estado == 'Pendiente' %}fw-bold text-secondary bg-light{% endif %}">
+                                            <i class="bi bi-clock-history text-secondary"></i> Pendiente
+                                        </button>
+                                    </form>
+                                </li>
+                                <li>
+                                    <form method="POST" action="{% url 'cambiar_estado_orden' orden.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="estado" value="En proceso">
+                                        <button type="submit" class="dropdown-item rounded-3 py-2 d-flex align-items-center gap-2 {% if orden.estado == 'En proceso' %}fw-bold text-primary bg-light{% endif %}">
+                                            <i class="bi bi-car-front-fill text-primary"></i> En Proceso
+                                        </button>
+                                    </form>
+                                </li>
+                                <li><hr class="dropdown-divider my-1"></li>
+                                <li>
+                                    <form method="POST" action="{% url 'cambiar_estado_orden' orden.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="estado" value="Listo para entrega">
+                                        <button type="submit" class="dropdown-item rounded-3 py-2 d-flex align-items-center gap-2 {% if orden.estado == 'Listo para entrega' %}fw-bold text-success bg-light{% endif %}">
+                                            <i class="bi bi-check-circle-fill text-success"></i> Terminado (Enviar Correo)
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
@@ -111,4 +148,29 @@
         </table>
     </div>
 </div>
+
+<!-- Script para Buscador y Filtro en Tiempo Real -->
+<script>
+    const buscador = document.getElementById('buscadorMonitor');
+    const filtroEstado = document.getElementById('filtroEstadoMonitor');
+    const filas = document.querySelectorAll('.fila-orden');
+
+    function filtrarTabla() {
+        const texto = buscador.value.toLowerCase();
+        const estadoSeleccionado = filtroEstado.value;
+
+        filas.forEach(fila => {
+            const contenidoFila = fila.innerText.toLowerCase();
+            const estadoFila = fila.getAttribute('data-estado');
+
+            const coincideTexto = contenidoFila.includes(texto);
+            const coincideEstado = (estadoSeleccionado === 'TODOS') || (estadoFila === estadoSeleccionado);
+
+            fila.style.display = (coincideTexto && coincideEstado) ? '' : 'none';
+        });
+    }
+
+    buscador.addEventListener('input', filtrarTabla);
+    filtroEstado.addEventListener('change', filtrarTabla);
+</script>
 {% endblock %}
