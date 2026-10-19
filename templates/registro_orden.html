@@ -55,18 +55,19 @@
                 <h6 class="fw-bold mb-4 text-dark">VEHÍCULO Y SERVICIOS</h6>
                 
                 <!-- Selector Visual de Tipo de Auto -->
+                <!-- Selector Visual de Tipo de Auto -->
                 <div class="row g-3 mb-4 text-center">
                     {% for cat in categorias %}
                     <div class="col-6 col-md-3">
-                        <div class="border rounded-4 p-3 tarjeta-categoria {% if forloop.first %}border-primary bg-primary bg-opacity-10{% endif %}"
-                             style="cursor:pointer; border-width: 2px !important;"
-                             data-id="{{ cat.id }}"
-                             data-nombre="{{ cat.nombre }}"
-                             data-precio="{% if forloop.first %}8.00{% elif forloop.counter == 2 %}12.00{% else %}10.00{% endif %}">
+                        <div class="border rounded-4 p-3 tarjeta-categoria {% if forloop.first %}border-primary bg-primary bg-opacity-10{% endif %}" 
+                             style="cursor:pointer; border-width: 2px !important;" 
+                             data-id="{{ cat.id }}" 
+                             data-nombre="{{ cat.nombre }}" 
+                             data-precio="{{ cat.precio_base|stringformat:'.2f' }}">
                             <i class="bi {% if 'Pick' in cat.nombre or 'Grande' in cat.nombre %}bi-truck-front{% elif 'Micro' in cat.nombre %}bi-bus-front{% else %}bi-car-front-fill{% endif %} fs-3 {% if forloop.first %}text-primary{% else %}text-muted{% endif %} mb-2 icono-cat"></i>
                             <span class="d-block fw-bold text-dark text-truncate" style="font-size: 0.82rem;">{{ cat.nombre }}</span>
                             <span class="d-block text-muted" style="font-size: 0.75rem;">
-                                Base: ${% if forloop.first %}8.00{% elif forloop.counter == 2 %}12.00{% else %}10.00{% endif %}
+                                Base: ${{ cat.precio_base|floatformat:2 }}
                             </span>
                         </div>
                     </div>
@@ -203,8 +204,9 @@
 
 <!-- Script para cálculo y actualización del Resumen en Tiempo Real -->
 <script>
-    let categoriaActualNombre = "{{ categorias.0.nombre|default:'Sedán' }}";
-    let precioBaseActual = 8.00;
+    const primeraTarjeta = document.querySelector('.tarjeta-categoria');
+    let categoriaActualNombre = primeraTarjeta ? primeraTarjeta.dataset.nombre : "{{ categorias.0.nombre|default:'Sedán' }}";
+    let precioBaseActual = primeraTarjeta ? (parseFloat(primeraTarjeta.dataset.precio) || 0.00) : 0.00;
 
     // 1. Selección de Cliente
     document.querySelectorAll('.item-cliente-caja').forEach(btn => {

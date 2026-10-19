@@ -286,9 +286,11 @@ def registro_orden(request):
             return redirect("caja")
 
     # Peticiones GET para alimentar la pantalla de Punto de Venta
+
     clientes = obtener_json("/clientes/")
     categorias = obtener_json("/categorias-vehiculos/")
     adicionales = obtener_json("/servicios/adicionales")
+    matriz = obtener_json("/servicios/matriz-precios")
 
     if not categorias:
         categorias = [
@@ -297,12 +299,20 @@ def registro_orden(request):
             {"id": 3, "nombre": "Carros Medianos", "comision_base": 2.50},
             {"id": 4, "nombre": "Carros Grandes", "comision_base": 3.00},
         ]
-
     if not adicionales:
         adicionales = [
-            {"id": 1, "nombre": "Lavado de Motor",
-                "precio_fijo": 15.00, "comision_extra": 2.00},
+            {"id": 1, "nombre": "Lavado de Motor", "precio_fijo": 15.00, "comision_extra": 2.00},
         ]
+
+    # Mapear el precio base real según el ID de cada categoría desde la matriz
+    precios_por_categoria = {
+        m.get("categoria_vehiculo_id"): float(m.get("precio_base", 0))
+        for m in matriz
+    }
+
+    for cat in categorias:
+        # Asigna el precio de la matriz (o 0.00 si aún no tiene precio configurado en Catálogos)
+        cat["precio_base"] = precios_por_categoria.get(cat.get("id"), 0.00)
 
     contexto = {
         "clientes": clientes,
