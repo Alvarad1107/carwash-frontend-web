@@ -1,0 +1,306 @@
+{% extends 'base.html' %}
+
+{% block nav_title %}FINANZAS Y PLANILLAS{% endblock %}
+
+{% block content %}
+<!-- Tarjetas Superiores de Control de Dinero Diario -->
+<div class="row mb-4 g-3">
+    <!-- Total Ingresos en Caja -->
+    <div class="col-md-4">
+        <div class="card card-sprint p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-muted fw-bold mb-1">INGRESOS EN CAJA (HOY)</h6>
+                    <h2 class="mb-0 fw-bold text-success">${{ total_ingresos|floatformat:2 }}</h2>
+                    <small class="text-muted">{{ cantidad_pagos }} cobros registrados</small>
+                </div>
+                <div class="bg-success rounded-circle p-3 text-white d-flex align-items-center justify-content-center" style="width: 52px; height: 52px;">
+                    <i class="bi bi-cash-stack fs-4"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Desglose Efectivo vs Digital -->
+    <div class="col-md-4">
+        <div class="card card-sprint p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-muted fw-bold mb-1">EFECTIVO / DIGITAL</h6>
+                    <h4 class="mb-0 fw-bold" style="color: var(--sprint-blue);">
+                        ${{ total_efectivo|floatformat:2 }} <span class="text-muted fs-6 fw-normal">/ ${{ total_digital|floatformat:2 }}</span>
+                    </h4>
+                    <small class="text-muted">Efectivo vs. Tarjeta y Transferencia</small>
+                </div>
+                <div class="rounded-circle p-3 text-white d-flex align-items-center justify-content-center" style="background-color: var(--sprint-blue); width: 52px; height: 52px;">
+                    <i class="bi bi-credit-card-2-front-fill fs-4"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Total Planilla de Comisiones -->
+    <div class="col-md-4">
+        <div class="card card-sprint p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-muted fw-bold mb-1">PLANILLA DE COMISIONES</h6>
+                    <h2 class="mb-0 fw-bold text-dark">${{ total_comisiones|floatformat:2 }}</h2>
+                    <small class="text-muted">Acumulado para pago de operarios</small>
+                </div>
+                <div class="bg-secondary rounded-circle p-3 text-white d-flex align-items-center justify-content-center" style="width: 52px; height: 52px;">
+                    <i class="bi bi-people-fill fs-4"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- COLUMNA IZQUIERDA: Registro de Cobros Diarios -->
+    <div class="col-lg-6">
+        <div class="card card-sprint p-4 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h6 class="fw-bold text-dark mb-0">REGISTRO DE COBROS DIARIOS</h6>
+                    <small class="text-muted">Control de ingresos por método de pago</small>
+                </div>
+                <button class="btn btn-primary btn-sm px-3 py-2" style="border-radius: 10px;" data-bs-toggle="modal" data-bs-target="#modalRegistrarPago">
+                    <i class="bi bi-plus-lg me-1"></i> Registrar Cobro
+                </button>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle border-top">
+                    <thead class="table-light text-muted" style="font-size: 0.8rem;">
+                        <tr>
+                            <th>Orden</th>
+                            <th>Vehículo / Cliente</th>
+                            <th>Método</th>
+                            <th>Cajero</th>
+                            <th class="text-end">Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody style="font-size: 0.9rem;">
+                        {% for p in pagos %}
+                        <tr>
+                            <td><span class="text-sprint fw-bold">#{{ p.orden_formateada }}</span></td>
+                            <td>
+                                <span class="fw-semibold text-dark d-block">{{ p.vehiculo_info }}</span>
+                                <small class="text-muted">{{ p.cliente_nombre }}</small>
+                            </td>
+                            <td>
+                                {% if p.metodo_pago == 'Efectivo' %}
+                                    <span class="badge bg-success bg-opacity-10 text-success border border-success">{{ p.metodo_pago }}</span>
+                                {% else %}
+                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary">{{ p.metodo_pago }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-muted small">{{ p.cajero_nombre }}</td>
+                            <td class="text-end fw-bold text-dark">${{ p.monto|floatformat:2 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">No hay cobros registrados hoy.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: Cálculo de Planillas y Lavado Simultáneo -->
+    <div class="col-lg-6">
+        <div class="card card-sprint p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h6 class="fw-bold text-dark mb-0">PLANILLA DE COMISIONES POR OPERARIO</h6>
+                    <small class="text-muted">Cálculo por categoría y división por lavado simultáneo</small>
+                </div>
+                <button class="btn btn-primary btn-sm px-3 py-2" style="border-radius: 10px;" data-bs-toggle="modal" data-bs-target="#modalAsignarComision">
+                    <i class="bi bi-calculator me-1"></i> Asignar Lavado
+                </button>
+            </div>
+
+            <!-- Resumen de Planilla por Trabajador -->
+            <div class="table-responsive mb-3">
+                <table class="table table-hover align-middle border-top">
+                    <thead class="table-light text-muted" style="font-size: 0.8rem;">
+                        <tr>
+                            <th>Operario</th>
+                            <th class="text-center">Lavados Participados</th>
+                            <th class="text-end">Total a Pagar (Planilla)</th>
+                        </tr>
+                    </thead>
+                    <tbody style="font-size: 0.9rem;">
+                        {% for op in resumen_planilla %}
+                        <tr>
+                            <td class="fw-semibold text-dark">
+                                <i class="bi bi-person-badge-fill text-primary me-2"></i>{{ op.nombre }}
+                            </td>
+                            <td class="text-center">
+                                <span class="badge rounded-pill bg-light text-dark border px-3">{{ op.cantidad_lavados }}</span>
+                            </td>
+                            <td class="text-end fw-bold text-success">${{ op.total_comision|floatformat:2 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted py-3">Sin comisiones asignadas.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Desglose de Lavados y División Simultánea -->
+            <h6 class="fw-bold text-muted small text-uppercase mt-2 mb-2">Desglose por Orden (Lavado Individual / Simultáneo)</h6>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead class="table-light text-muted" style="font-size: 0.78rem;">
+                        <tr>
+                            <th>Orden</th>
+                            <th>Vehículo / Categoría</th>
+                            <th>Operario Asignado</th>
+                            <th class="text-end">Comisión Asignada</th>
+                        </tr>
+                    </thead>
+                    <tbody style="font-size: 0.85rem;">
+                        {% for det in detalle_comisiones %}
+                        <tr>
+                            <td class="text-sprint fw-bold">#{{ det.orden_formateada }}</td>
+                            <td>{{ det.vehiculo_categoria }}</td>
+                            <td>{{ det.operario_nombre }}</td>
+                            <td class="text-end fw-semibold text-success">+${{ det.comision_calculada|floatformat:2 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-2">Usa el botón "Asignar Lavado" para calcular comisiones.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 1: Registrar Cobro en Caja -->
+<div class="modal fade" id="modalRegistrarPago" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 20px;">
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="registrar_pago">
+                <div class="modal-header border-0 pb-0">
+                    <h6 class="modal-title fw-bold">REGISTRAR COBRO DE ORDEN</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="label-sprint">Seleccionar Orden</label>
+                        <select name="orden_id" id="selectOrdenPago" class="form-select" style="border-radius: 14px; padding: 0.75rem;" required>
+                            {% for o in ordenes %}
+                            <option value="{{ o.id }}" data-total="{{ o.total_pagar }}">
+                                Orden #{{ o.id_formateado }} - {{ o.vehiculo_info }} (${{ o.total_pagar|floatformat:2 }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="label-sprint">Método de Pago</label>
+                        <select name="metodo_pago" class="form-select" style="border-radius: 14px; padding: 0.75rem;" required>
+                            <option value="Efectivo">Efectivo</option>
+                            <option value="Tarjeta">Tarjeta de Crédito / Débito</option>
+                            <option value="Transferencia">Transferencia / QR</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="label-sprint">Cajero Responsable</label>
+                        <select name="cajero_id" class="form-select" style="border-radius: 14px; padding: 0.75rem;" required>
+                            {% for u in usuarios %}
+                            <option value="{{ u.id }}">{{ u.nombre_completo }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="label-sprint">Monto a Cobrar ($)</label>
+                        <div class="input-group input-sprint-container">
+                            <input type="number" step="0.01" name="monto" id="inputMontoPago" class="form-control" value="{{ ordenes.0.total_pagar|default:'8.00' }}" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="submit" class="btn btn-primary w-100 py-2">Confirmar Cobro</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 2: Asignar Lavado Simultáneo y Calcular Comisión -->
+<div class="modal fade" id="modalAsignarComision" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 20px;">
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="asignar_operarios">
+                <div class="modal-header border-0 pb-0">
+                    <h6 class="modal-title fw-bold">CÁLCULO DE COMISIÓN (LAVADO SIMULTÁNEO)</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="label-sprint">Orden de Lavado</label>
+                        <select name="orden_id" class="form-select" style="border-radius: 14px; padding: 0.75rem;" required>
+                            {% for o in ordenes %}
+                            <option value="{{ o.id }}">
+                                Orden #{{ o.id_formateado }} - {{ o.vehiculo_info }} (Comisión Base: ${{ o.comision_base|floatformat:2 }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="label-sprint">Selecciona 1 o varios Operarios (División Automática)</label>
+                        <div class="border rounded-4 p-3 bg-light">
+                            {% for u in usuarios %}
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="operarios_ids" value="{{ u.id }}" id="op_{{ u.id }}" {% if forloop.last %}checked{% endif %}>
+                                <label class="form-check-label fw-semibold text-dark" for="op_{{ u.id }}">
+                                    {{ u.nombre_completo }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <small class="text-muted d-block mt-1">
+                            * Si seleccionas 2 o más operarios, la API divide equitativamente la comisión del vehículo.
+                        </small>
+                    </div>
+                    <div class="mb-2">
+                        <label class="label-sprint">Comisión Extra por Servicios Adicionales ($)</label>
+                        <div class="input-group input-sprint-container">
+                            <input type="number" step="0.01" name="comision_extra_manual" class="form-control" value="0.00">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="submit" class="btn btn-primary w-100 py-2">Calcular y Guardar en Planilla</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    const selectOrden = document.getElementById('selectOrdenPago');
+    const inputMonto = document.getElementById('inputMontoPago');
+    if (selectOrden && inputMonto) {
+        selectOrden.addEventListener('change', function() {
+            const opt = this.options[this.selectedIndex];
+            if (opt && opt.dataset.total) {
+                inputMonto.value = parseFloat(opt.dataset.total).toFixed(2);
+            }
+        });
+    }
+</script>
+{% endblock %}

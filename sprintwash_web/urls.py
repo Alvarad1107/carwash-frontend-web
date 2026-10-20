@@ -21,22 +21,24 @@ from panel_admin.views import (
     catalogos,
     dashboard_prueba,
     login_prueba,
+    modulo_finanzas,
     modulo_usuarios,
     monitor_operaciones,
     registro_orden,
 )
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('', dashboard_prueba, name='dashboard'),
-    path('login/', login_prueba, name='login'),
-    path('monitor/', monitor_operaciones, name='monitor'),
+    path("admin/", admin.site.urls),
+    path("", dashboard_prueba, name="dashboard"),
+    path("login/", login_prueba, name="login"),
+    path("monitor/", monitor_operaciones, name="monitor"),
     path(
-        'monitor/estado/<int:orden_id>/',
+        "monitor/estado/<int:orden_id>/",
         cambiar_estado_orden,
-        name='cambiar_estado_orden',
+        name="cambiar_estado_orden",
     ),
-    path('caja/', registro_orden, name='caja'),
-    path('catalogos/', catalogos, name='catalogos'),
-    path('usuarios/', modulo_usuarios, name='usuarios'),
+    path("caja/", registro_orden, name="caja"),
+    path("finanzas/", modulo_finanzas, name="finanzas"),
+    path("catalogos/", catalogos, name="catalogos"),
+    path("usuarios/", modulo_usuarios, name="usuarios"),
 ]

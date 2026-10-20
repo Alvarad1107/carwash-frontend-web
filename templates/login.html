@@ -20,7 +20,7 @@
             <p class="text-sprint fw-bold mt-3 mb-0" style="font-size: 0.75rem; letter-spacing: 1.5px;">BIENVENIDO DE NUEVO</p>
         </div>
 
-        <form>
+        <form method="POST" action="{% url 'login' %}"> {% csrf_token %}
             <!-- Correo electrónico -->
             <div class="mb-4 text-start">
                 <label class="label-sprint">Correo electrónico</label>

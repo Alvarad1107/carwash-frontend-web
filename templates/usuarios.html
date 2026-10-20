@@ -11,9 +11,9 @@
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h5 class="fw-bold text-dark mb-1">CONTROL DE ACCESO Y PERSONAL</h5>
-                    <p class="text-muted small mb-0">Gestión de cuentas y roles de seguridad</p>
+                    <p class="text-muted small mb-0">Gestión de cuentas y roles de seguridad conectados a MySQL</p>
                 </div>
-                <button class="btn btn-primary btn-sm px-4 py-2" style="border-radius: 12px; font-weight: 600;">
+                <button class="btn btn-primary btn-sm px-4 py-2" style="border-radius: 12px; font-weight: 600;" data-bs-toggle="modal" data-bs-target="#modalNuevoEmpleado">
                     <i class="bi bi-person-plus-fill me-2"></i> Agregar Nuevo Empleado
                 </button>
             </div>
@@ -23,7 +23,7 @@
                 <div class="col-md-5">
                     <div class="input-group input-sprint-container">
                         <span class="input-group-text"><i class="bi bi-search text-muted"></i></span>
-                        <input type="text" class="form-control" placeholder="Buscar empleado por nombre o correo...">
+                        <input type="text" id="buscadorUsuarios" class="form-control" placeholder="Buscar empleado por nombre o correo...">
                     </div>
                 </div>
             </div>
@@ -42,115 +42,106 @@
                         </tr>
                     </thead>
                     <tbody style="font-size: 0.95rem;">
-                        <!-- Fila 1: Encargado General -->
-                        <tr>
-                            <td class="ps-3 fw-bold text-muted">1004</td>
-                            <td class="fw-semibold text-dark">
+                        {% for u in usuarios %}
+                        <tr class="fila-usuario">
+                            <td class="ps-3 fw-bold text-muted">100{{ u.id }}</td>
+                            <td class="fw-semibold {% if u.estado == 1 %}text-dark{% else %}text-muted{% endif %}">
                                 <div class="d-flex align-items-center gap-2">
-                                    <i class="bi bi-person-circle fs-4 text-primary"></i>
-                                    Don Edwin Martínez
+                                    <i class="bi bi-person-circle fs-4 {% if u.rol_id == 1 %}text-primary{% else %}text-muted{% endif %}"></i>
+                                    {{ u.nombre_completo }}
                                 </div>
                             </td>
-                            <td class="text-muted">don.edwin@sprintwash.local</td>
+                            <td class="text-muted">{{ u.correo }}</td>
                             <td class="text-center">
-                                <span class="badge rounded-pill px-3 py-1" style="background-color: var(--sprint-blue); color: white; font-weight: 600;">ENCARGADO GENERAL</span>
+                                {% if u.rol_id == 1 %}
+                                    <span class="badge rounded-pill px-3 py-1" style="background-color: var(--sprint-blue); color: white; font-weight: 600;">{{ u.rol_nombre }}</span>
+                                {% elif u.rol_id == 2 %}
+                                    <span class="badge rounded-pill border px-3 py-1" style="color: var(--sprint-blue); border-color: var(--sprint-blue) !important; font-weight: 600;">{{ u.rol_nombre }}</span>
+                                {% else %}
+                                    <span class="badge rounded-pill bg-secondary px-3 py-1 text-white" style="font-weight: 600;">{{ u.rol_nombre }}</span>
+                                {% endif %}
                             </td>
                             <td class="text-center">
-                                <span class="badge rounded-pill bg-success px-3 py-1 bg-opacity-10 text-success border border-success">ACTIVO</span>
+                                {% if u.estado == 1 %}
+                                    <span class="badge rounded-pill bg-success px-3 py-1 bg-opacity-10 text-success border border-success">ACTIVO</span>
+                                {% else %}
+                                    <span class="badge rounded-pill bg-secondary px-3 py-1 bg-opacity-10 text-secondary border border-secondary">INACTIVO</span>
+                                {% endif %}
                             </td>
                             <td class="text-end pe-3">
-                                <button class="btn btn-sm btn-light text-primary me-1 rounded-circle" title="Editar"><i class="bi bi-pencil-square"></i></button>
-                                <button class="btn btn-sm btn-light text-secondary me-1 rounded-circle" title="Restablecer Contraseña"><i class="bi bi-key"></i></button>
-                                <button class="btn btn-sm btn-light text-danger rounded-circle" title="Desactivar" disabled><i class="bi bi-lock-fill"></i></button>
+                                <form method="POST" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="accion" value="alternar_estado">
+                                    <input type="hidden" name="usuario_id" value="{{ u.id }}">
+                                    {% if u.estado == 1 %}
+                                        <button type="submit" class="btn btn-sm btn-light text-danger rounded-circle" title="Desactivar"><i class="bi bi-lock-fill"></i></button>
+                                    {% else %}
+                                        <button type="submit" class="btn btn-sm btn-light text-success rounded-circle" title="Activar"><i class="bi bi-unlock-fill"></i></button>
+                                    {% endif %}
+                                </form>
                             </td>
                         </tr>
-                        
-                        <!-- Fila 2: Cajero -->
-                        <tr>
-                            <td class="ps-3 fw-bold text-muted">1001</td>
-                            <td class="fw-semibold text-dark">
-                                <div class="d-flex align-items-center gap-2">
-                                    <i class="bi bi-person-circle fs-4 text-muted"></i>
-                                    Juan Pérez
-                                </div>
-                            </td>
-                            <td class="text-muted">juan.perez@sprintwash.local</td>
-                            <td class="text-center">
-                                <span class="badge rounded-pill border px-3 py-1" style="color: var(--sprint-blue); border-color: var(--sprint-blue) !important; font-weight: 600;">CAJERO</span>
-                            </td>
-                            <td class="text-center">
-                                <span class="badge rounded-pill bg-success px-3 py-1 bg-opacity-10 text-success border border-success">ACTIVO</span>
-                            </td>
-                            <td class="text-end pe-3">
-                                <button class="btn btn-sm btn-light text-primary me-1 rounded-circle" title="Editar"><i class="bi bi-pencil-square"></i></button>
-                                <button class="btn btn-sm btn-light text-secondary me-1 rounded-circle" title="Restablecer Contraseña"><i class="bi bi-key"></i></button>
-                                <button class="btn btn-sm btn-light text-danger rounded-circle" title="Desactivar"><i class="bi bi-lock-fill"></i></button>
-                            </td>
-                        </tr>
-
-                        <!-- Fila 3: Supervisor de Patio -->
-                        <tr>
-                            <td class="ps-3 fw-bold text-muted">1002</td>
-                            <td class="fw-semibold text-dark">
-                                <div class="d-flex align-items-center gap-2">
-                                    <i class="bi bi-person-circle fs-4 text-muted"></i>
-                                    Erick Herrera
-                                </div>
-                            </td>
-                            <td class="text-muted">erick.herrera@sprintwash.local</td>
-                            <td class="text-center">
-                                <span class="badge rounded-pill bg-secondary px-3 py-1 text-white" style="font-weight: 600;">SUPERVISOR</span>
-                            </td>
-                            <td class="text-center">
-                                <span class="badge rounded-pill bg-success px-3 py-1 bg-opacity-10 text-success border border-success">ACTIVO</span>
-                            </td>
-                            <td class="text-end pe-3">
-                                <button class="btn btn-sm btn-light text-primary me-1 rounded-circle" title="Editar"><i class="bi bi-pencil-square"></i></button>
-                                <button class="btn btn-sm btn-light text-secondary me-1 rounded-circle" title="Restablecer Contraseña"><i class="bi bi-key"></i></button>
-                                <button class="btn btn-sm btn-light text-danger rounded-circle" title="Desactivar"><i class="bi bi-lock-fill"></i></button>
-                            </td>
-                        </tr>
-
-                        <!-- Fila 4: Supervisor de Patio (Inactivo) -->
-                        <tr>
-                            <td class="ps-3 fw-bold text-muted">1003</td>
-                            <td class="fw-semibold text-muted">
-                                <div class="d-flex align-items-center gap-2">
-                                    <i class="bi bi-person-circle fs-4 text-muted opacity-50"></i>
-                                    Edenilson Escamilla
-                                </div>
-                            </td>
-                            <td class="text-muted opacity-75">edenilson.escamilla@sprintwash.local</td>
-                            <td class="text-center opacity-75">
-                                <span class="badge rounded-pill bg-secondary px-3 py-1 text-white" style="font-weight: 600;">SUPERVISOR</span>
-                            </td>
-                            <td class="text-center">
-                                <span class="badge rounded-pill bg-secondary px-3 py-1 bg-opacity-10 text-secondary border border-secondary">INACTIVO</span>
-                            </td>
-                            <td class="text-end pe-3">
-                                <button class="btn btn-sm btn-light text-primary me-1 rounded-circle" title="Editar"><i class="bi bi-pencil-square"></i></button>
-                                <button class="btn btn-sm btn-light text-secondary me-1 rounded-circle" title="Restablecer Contraseña"><i class="bi bi-key"></i></button>
-                                <button class="btn btn-sm btn-light text-success rounded-circle" title="Activar"><i class="bi bi-unlock-fill"></i></button>
-                            </td>
-                        </tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>
-
-            <!-- Paginación -->
-            <div class="d-flex justify-content-center mt-4">
-                <nav aria-label="Page navigation">
-                    <ul class="pagination pagination-sm mb-0">
-                        <li class="page-item disabled"><a class="page-link border-0 text-muted" href="#"><i class="bi bi-chevron-left"></i></a></li>
-                        <li class="page-item active"><a class="page-link border-0 rounded-circle text-white mx-1" style="background-color: var(--sprint-blue); width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;" href="#">1</a></li>
-                        <li class="page-item"><a class="page-link border-0 text-muted mx-1" href="#">2</a></li>
-                        <li class="page-item"><a class="page-link border-0 text-muted mx-1" href="#">3</a></li>
-                        <li class="page-item"><a class="page-link border-0 text-muted" href="#"><i class="bi bi-chevron-right"></i></a></li>
-                    </ul>
-                </nav>
-            </div>
-            
         </div>
     </div>
 </div>
+
+<!-- MODAL: Nuevo Empleado -->
+<div class="modal fade" id="modalNuevoEmpleado" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 20px;">
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="crear_usuario">
+                <div class="modal-header border-0 pb-0">
+                    <h6 class="modal-title fw-bold">REGISTRAR NUEVO EMPLEADO</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="label-sprint">Nombre Completo</label>
+                        <div class="input-group input-sprint-container">
+                            <input type="text" name="nombre_completo" class="form-control" placeholder="Ej. Roberto Gómez" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="label-sprint">Correo Electrónico</label>
+                        <div class="input-group input-sprint-container">
+                            <input type="email" name="correo" class="form-control" placeholder="roberto@sprintwash.local" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="label-sprint">Rol en el Sistema</label>
+                        <select name="rol_id" class="form-select" style="border-radius: 14px; padding: 0.75rem;" required>
+                            <option value="1">ENCARGADO GENERAL</option>
+                            <option value="2">CAJERO</option>
+                            <option value="3" selected>OPERARIO / SUPERVISOR</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="label-sprint">Contraseña Temporal</label>
+                        <div class="input-group input-sprint-container">
+                            <input type="password" name="password" class="form-control" value="sprintwash123" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="submit" class="btn btn-primary w-100 py-2">Guardar Empleado</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('buscadorUsuarios').addEventListener('input', function() {
+        const q = this.value.toLowerCase();
+        document.querySelectorAll('.fila-usuario').forEach(f => {
+            f.style.display = f.innerText.toLowerCase().includes(q) ? '' : 'none';
+        });
+    });
+</script>
 {% endblock %}

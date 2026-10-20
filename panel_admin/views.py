@@ -20,6 +20,8 @@ def dashboard_prueba(request):
 
 
 def login_prueba(request):
+    if request.method == "POST":
+        return redirect("monitor")
     return render(request, "login.html")
 
 
@@ -301,7 +303,8 @@ def registro_orden(request):
         ]
     if not adicionales:
         adicionales = [
-            {"id": 1, "nombre": "Lavado de Motor", "precio_fijo": 15.00, "comision_extra": 2.00},
+            {"id": 1, "nombre": "Lavado de Motor",
+                "precio_fijo": 15.00, "comision_extra": 2.00},
         ]
 
     # Mapear el precio base real según el ID de cada categoría desde la matriz
@@ -322,5 +325,169 @@ def registro_orden(request):
     return render(request, "registro_orden.html", contexto)
 
 
+def modulo_finanzas(request):
+    if request.method == "POST":
+        accion = request.POST.get("accion")
+        try:
+            if accion == "registrar_pago":
+                requests.post(
+                    f"{API_URL}/finanzas/pagos",
+                    json={
+                        "orden_id": int(request.POST.get("orden_id")),
+                        "cajero_id": int(request.POST.get("cajero_id")),
+                        "metodo_pago": request.POST.get("metodo_pago"),
+                        "monto": float(request.POST.get("monto", 0)),
+                    },
+                    timeout=5,
+                )
+            elif accion == "asignar_operarios":
+                operarios_raw = request.POST.getlist("operarios_ids")
+                operarios_ids = [int(x) for x in operarios_raw]
+                if operarios_ids:
+                    requests.post(
+                        f"{API_URL}/finanzas/asignar-operarios",
+                        json={
+                            "orden_id": int(request.POST.get("orden_id")),
+                            "operarios_ids": operarios_ids,
+                            "comision_extra_manual": float(
+                                request.POST.get("comision_extra_manual") or 0
+                            ),
+                        },
+                        timeout=5,
+                    )
+        except Exception as e:
+            print(f"Error en módulo de finanzas: {e}")
+        return redirect("finanzas")
+
+    ordenes = obtener_json("/ordenes/")
+    vehiculos = obtener_json("/vehiculos/")
+    clientes = obtener_json("/clientes/")
+    categorias = obtener_json("/categorias-vehiculos/")
+    usuarios = obtener_json("/finanzas/usuarios")
+    pagos = obtener_json("/finanzas/pagos")
+    comisiones = obtener_json("/finanzas/comisiones")
+
+    veh_dict = {v["id"]: v for v in vehiculos}
+    cli_dict = {c["id"]: c for c in clientes}
+    cat_dict = {c["id"]: c for c in categorias}
+    usr_dict = {u["id"]: u["nombre_completo"] for u in usuarios}
+    ord_dict = {o["id"]: o for o in ordenes}
+
+    ordenes_info = []
+    for o in ordenes:
+        v = veh_dict.get(o.get("vehiculo_id"), {})
+        c = cli_dict.get(v.get("cliente_id"), {})
+        cat = cat_dict.get(v.get("categoria_vehiculo_id"), {})
+        ordenes_info.append({
+            "id": o.get("id"),
+            "id_formateado": f"{o.get('id', 0):08d}",
+            "vehiculo_info": f"{v.get('placa', 'S/P')} ({v.get('marca', '')} {v.get('modelo', '')})".strip(),
+            "cliente_nombre": c.get("nombre_completo", "Cliente General"),
+            "categoria_nombre": cat.get("nombre", "Sedán"),
+            "comision_base": float(cat.get("comision_base", 2.50)),
+            "total_pagar": float(o.get("total_pagar", 0)),
+        })
+
+    ord_info_dict = {oi["id"]: oi for oi in ordenes_info}
+
+    pagos_lista = []
+    total_ingresos = 0.0
+    total_efectivo = 0.0
+    total_digital = 0.0
+
+    for p in pagos:
+        monto = float(p.get("monto", 0))
+        metodo = p.get("metodo_pago", "Efectivo")
+        total_ingresos += monto
+        if metodo == "Efectivo":
+            total_efectivo += monto
+        else:
+            total_digital += monto
+
+        oi = ord_info_dict.get(p.get("orden_id"), {})
+        pagos_lista.append({
+            "orden_formateada": f"{p.get('orden_id', 0):08d}",
+            "vehiculo_info": oi.get("vehiculo_info", "Vehículo"),
+            "cliente_nombre": oi.get("cliente_nombre", "Cliente"),
+            "metodo_pago": metodo,
+            "cajero_nombre": usr_dict.get(p.get("cajero_id"), "Cajero"),
+            "monto": monto,
+        })
+
+    detalle_comisiones = []
+    acumulado_por_op = {}
+    conteo_por_op = {}
+    total_comisiones = 0.0
+
+    for com in comisiones:
+        uid = com.get("usuario_id")
+        monto_com = float(com.get("comision_calculada", 0))
+        total_comisiones += monto_com
+        acumulado_por_op[uid] = acumulado_por_op.get(uid, 0.0) + monto_com
+        conteo_por_op[uid] = conteo_por_op.get(uid, 0) + 1
+
+        oi = ord_info_dict.get(com.get("orden_id"), {})
+        detalle_comisiones.append({
+            "orden_formateada": f"{com.get('orden_id', 0):08d}",
+            "vehiculo_categoria": f"{oi.get('vehiculo_info', '')} - {oi.get('categoria_nombre', '')}",
+            "operario_nombre": usr_dict.get(uid, "Operario"),
+            "comision_calculada": monto_com,
+        })
+
+    resumen_planilla = []
+    for u in usuarios:
+        uid = u["id"]
+        if uid in acumulado_por_op or u.get("rol_id") == 3:
+            resumen_planilla.append({
+                "nombre": u["nombre_completo"],
+                "cantidad_lavados": conteo_por_op.get(uid, 0),
+                "total_comision": acumulado_por_op.get(uid, 0.0),
+            })
+
+    contexto = {
+        "ordenes": ordenes_info,
+        "usuarios": usuarios,
+        "pagos": pagos_lista,
+        "cantidad_pagos": len(pagos_lista),
+        "total_ingresos": total_ingresos,
+        "total_efectivo": total_efectivo,
+        "total_digital": total_digital,
+        "total_comisiones": total_comisiones,
+        "resumen_planilla": resumen_planilla,
+        "detalle_comisiones": detalle_comisiones,
+    }
+    return render(request, "finanzas.html", contexto)
+
+
 def modulo_usuarios(request):
-    return render(request, "usuarios.html")
+    if request.method == "POST":
+        accion = request.POST.get("accion")
+        try:
+            if accion == "crear_usuario":
+                requests.post(
+                    f"{API_URL}/finanzas/usuarios",
+                    json={
+                        "rol_id": int(request.POST.get("rol_id", 3)),
+                        "nombre_completo": request.POST.get("nombre_completo"),
+                        "correo": request.POST.get("correo"),
+                        "password": request.POST.get("password", "sprintwash123"),
+                    },
+                    timeout=5,
+                )
+            elif accion == "alternar_estado":
+                uid = request.POST.get("usuario_id")
+                requests.patch(
+                    f"{API_URL}/finanzas/usuarios/{uid}/estado", timeout=5)
+        except Exception as e:
+            print(f"Error en módulo de usuarios: {e}")
+        return redirect("usuarios")
+
+    usuarios = obtener_json("/finanzas/usuarios")
+    roles = obtener_json("/finanzas/roles")
+    roles_dict = {r["id"]: r["nombre"] for r in roles}
+
+    for u in usuarios:
+        u["rol_nombre"] = roles_dict.get(
+            u.get("rol_id"), "OPERARIO / SUPERVISOR")
+
+    return render(request, "usuarios.html", {"usuarios": usuarios})
