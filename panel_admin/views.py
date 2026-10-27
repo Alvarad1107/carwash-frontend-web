@@ -308,14 +308,16 @@ def registro_orden(request):
         ]
 
     # Mapear el precio base real según el ID de cada categoría desde la matriz
+    precios_respaldo = {1: 4.00, 2: 8.00, 3: 6.00, 4: 8.00, 5: 10.00}
     precios_por_categoria = {
         m.get("categoria_vehiculo_id"): float(m.get("precio_base", 0))
         for m in matriz
     }
 
     for cat in categorias:
-        # Asigna el precio de la matriz (o 0.00 si aún no tiene precio configurado en Catálogos)
-        cat["precio_base"] = precios_por_categoria.get(cat.get("id"), 0.00)
+        cid = cat.get("id")
+        cat["precio_base"] = precios_por_categoria.get(
+            cid, precios_respaldo.get(cid, 5.00))
 
     contexto = {
         "clientes": clientes,
