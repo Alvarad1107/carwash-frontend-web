@@ -1,5 +1,4 @@
 {% extends 'base.html' %}
-
 {% block nav_title %}PUNTO DE VENTA / NUEVA ORDEN{% endblock %}
 
 {% block content %}
@@ -55,14 +54,13 @@
                 <h6 class="fw-bold mb-4 text-dark">VEHÍCULO Y SERVICIOS</h6>
                 
                 <!-- Selector Visual de Tipo de Auto -->
-                <!-- Selector Visual de Tipo de Auto -->
                 <div class="row g-3 mb-4 text-center">
                     {% for cat in categorias %}
                     <div class="col-6 col-md-3">
-                        <div class="border rounded-4 p-3 tarjeta-categoria {% if forloop.first %}border-primary bg-primary bg-opacity-10{% endif %}" 
-                             style="cursor:pointer; border-width: 2px !important;" 
-                             data-id="{{ cat.id }}" 
-                             data-nombre="{{ cat.nombre }}" 
+                        <div class="border rounded-4 p-3 tarjeta-categoria h-100 {% if forloop.first %}border-primary bg-primary bg-opacity-10{% endif %}"
+                             style="cursor:pointer; border-width: 2px !important;"
+                             data-id="{{ cat.id }}"
+                             data-nombre="{{ cat.nombre }}"
                              data-precio="{{ cat.precio_base|stringformat:'.2f' }}">
                             <i class="bi {% if 'Pick' in cat.nombre or 'Grande' in cat.nombre %}bi-truck-front{% elif 'Micro' in cat.nombre %}bi-bus-front{% else %}bi-car-front-fill{% endif %} fs-3 {% if forloop.first %}text-primary{% else %}text-muted{% endif %} mb-2 icono-cat"></i>
                             <span class="d-block fw-bold text-dark text-truncate" style="font-size: 0.82rem;">{{ cat.nombre }}</span>
@@ -74,14 +72,26 @@
                     {% endfor %}
                 </div>
 
-                <!-- Inputs del Auto -->
+                <!-- Inputs del Auto y Bahía -->
                 <div class="row g-3 mb-4">
-                    <div class="col-12 text-start">
+                    <div class="col-md-7 text-start">
                         <label class="label-sprint">Placa del Vehículo</label>
                         <div class="input-group input-sprint-container">
                             <span class="input-group-text"><i class="bi bi-123 text-muted"></i></span>
                             <input type="text" name="placa" id="inputPlaca" class="form-control text-uppercase" placeholder="P-123456" required>
                         </div>
+                    </div>
+                    <div class="col-md-5 text-start">
+                        <label class="label-sprint">Bahía Asignada</label>
+                        <select name="bahia_id" class="form-select" style="border-radius: 14px; padding: 0.78rem;" required>
+                            {% for b in bahias %}
+                            <option value="{{ b.id }}" {% if b.estado == 'Ocupada' %}disabled{% endif %}>
+                                {{ b.nombre }} ({{ b.estado }})
+                            </option>
+                            {% empty %}
+                            <option value="1">Bahía 1 (Disponible)</option>
+                            {% endfor %}
+                        </select>
                     </div>
                     <div class="col-6 text-start">
                         <label class="label-sprint">Marca</label>
@@ -102,11 +112,12 @@
                 {% for extra in adicionales %}
                 <div class="form-check form-switch mb-2">
                     <input class="form-check-input switch-extra" type="checkbox" role="switch"
+                           name="extras_ids" value="{{ extra.id }}"
                            id="extra_{{ extra.id }}"
                            data-nombre="{{ extra.nombre }}"
                            data-precio="{{ extra.precio_fijo }}">
                     <label class="form-check-label ms-2 text-dark" for="extra_{{ extra.id }}">
-                        {{ extra.nombre }} <span class="text-muted small">(+${{ extra.precio_fijo|floatformat:2 }})</span>
+                        {{ extra.nombre }} <span class="text-muted small">(+${{ extra.precio_fijo|floatformat:2 }} | Com. +${{ extra.comision_extra|floatformat:2 }})</span>
                     </label>
                 </div>
                 {% endfor %}
@@ -159,7 +170,6 @@
                 </button>
             </div>
         </div>
-
     </div>
 </form>
 
@@ -206,7 +216,7 @@
 <script>
     const primeraTarjeta = document.querySelector('.tarjeta-categoria');
     let categoriaActualNombre = primeraTarjeta ? primeraTarjeta.dataset.nombre : "{{ categorias.0.nombre|default:'Sedán' }}";
-    let precioBaseActual = primeraTarjeta ? (parseFloat(primeraTarjeta.dataset.precio) || 0.00) : 0.00;
+    let precioBaseActual = primeraTarjeta ? (parseFloat(primeraTarjeta.dataset.precio) || 4.00) : 4.00;
 
     // 1. Selección de Cliente
     document.querySelectorAll('.item-cliente-caja').forEach(btn => {
@@ -217,7 +227,6 @@
             });
             this.classList.remove('bg-transparent');
             this.classList.add('bg-primary', 'bg-opacity-10', 'border-start', 'border-primary', 'border-4');
-
             document.getElementById('inputClienteId').value = this.dataset.id;
             document.getElementById('resumenCliente').innerText = this.dataset.nombre;
         });
@@ -244,9 +253,8 @@
             this.querySelector('.icono-cat').classList.add('text-primary');
 
             categoriaActualNombre = this.dataset.nombre;
-            precioBaseActual = parseFloat(this.dataset.precio) || 8.00;
+            precioBaseActual = parseFloat(this.dataset.precio) || 4.00;
             document.getElementById('inputCategoriaId').value = this.dataset.id;
-
             actualizarResumen();
         });
     });
@@ -295,5 +303,8 @@
         document.getElementById('inputImpuestos').value = impuestos.toFixed(2);
         document.getElementById('inputTotalPagar').value = total.toFixed(2);
     }
+
+    // Inicializar montos reales al cargar la página
+    actualizarResumen();
 </script>
 {% endblock %}

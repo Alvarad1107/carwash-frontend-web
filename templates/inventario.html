@@ -1,0 +1,252 @@
+{% extends 'base.html' %}
+{% block nav_title %}CONTROL DE INVENTARIO Y ALMACÉN{% endblock %}
+
+{% block content %}
+<!-- Tarjetas Superiores de KPIs de Inventario -->
+<div class="row mb-4 g-3">
+    <div class="col-md-4">
+        <div class="card card-sprint p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-muted fw-bold mb-1">TOTAL INSUMOS</h6>
+                    <h2 class="mb-0 fw-bold text-dark">{{ total_insumos }}</h2>
+                    <small class="text-muted">Productos registrados en catálogo</small>
+                </div>
+                <div class="rounded-circle p-3 text-white d-flex align-items-center justify-content-center" style="background-color: var(--sprint-blue); width: 52px; height: 52px;">
+                    <i class="bi bi-box-seam fs-4"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card card-sprint p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-muted fw-bold mb-1">VALOR DEL INVENTARIO</h6>
+                    <h2 class="mb-0 fw-bold text-success">${{ valor_inventario|floatformat:2 }}</h2>
+                    <small class="text-muted">Costo acumulado en almacén</small>
+                </div>
+                <div class="bg-success rounded-circle p-3 text-white d-flex align-items-center justify-content-center" style="width: 52px; height: 52px;">
+                    <i class="bi bi-cash-coin fs-4"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card card-sprint p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-muted fw-bold mb-1">ALERTAS DE STOCK MÍNIMO</h6>
+                    <h2 class="mb-0 fw-bold {% if alertas_criticas > 0 %}text-danger{% else %}text-secondary{% endif %}">{{ alertas_criticas }}</h2>
+                    <small class="text-muted">Insumos por agotarse</small>
+                </div>
+                <div class="{% if alertas_criticas > 0 %}bg-danger{% else %}bg-secondary{% endif %} rounded-circle p-3 text-white d-flex align-items-center justify-content-center" style="width: 52px; height: 52px;">
+                    <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabla Principal de Inventario -->
+<div class="card card-sprint p-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div class="input-group input-sprint-container" style="max-width: 380px;">
+            <span class="input-group-text"><i class="bi bi-search text-muted"></i></span>
+            <input type="text" id="buscadorInventario" class="form-control" placeholder="Buscar por SKU, producto o proveedor...">
+        </div>
+
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary px-3 py-2" style="border-radius: 12px; font-weight: 600;" data-bs-toggle="modal" data-bs-target="#modalMovimiento">
+                <i class="bi bi-arrow-left-right me-1"></i> Entrada / Salida
+            </button>
+            <button class="btn btn-primary px-3 py-2" style="border-radius: 12px;" data-bs-toggle="modal" data-bs-target="#modalNuevoInsumo">
+                <i class="bi bi-plus-lg me-1"></i> Nuevo Insumo
+            </button>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle border-top">
+            <thead class="table-light text-muted" style="font-size: 0.85rem;">
+                <tr>
+                    <th class="ps-3">SKU</th>
+                    <th>Producto</th>
+                    <th>Proveedor</th>
+                    <th class="text-center">Stock Actual</th>
+                    <th class="text-center">Mínimo</th>
+                    <th class="text-end">Costo Unit.</th>
+                    <th class="text-center">Estado</th>
+                    <th class="text-end pe-3">Acciones</th>
+                </tr>
+            </thead>
+            <tbody style="font-size: 0.92rem;">
+                {% for item in insumos %}
+                <tr class="fila-insumo {% if item.cantidad_actual <= item.stock_minimo %}table-danger bg-opacity-10{% endif %}">
+                    <td class="ps-3 fw-bold text-sprint">{{ item.codigo_sku }}</td>
+                    <td class="fw-semibold text-dark">{{ item.nombre_producto }}</td>
+                    <td class="text-muted">{{ item.proveedor|default:"General" }}</td>
+                    <td class="text-center fw-bold {% if item.cantidad_actual <= item.stock_minimo %}text-danger{% else %}text-dark{% endif %}">
+                        {{ item.cantidad_actual }} <span class="text-muted fw-normal small">{{ item.unidad_medida }}</span>
+                    </td>
+                    <td class="text-center text-muted">{{ item.stock_minimo }}</td>
+                    <td class="text-end fw-semibold">${{ item.costo_unitario|floatformat:2 }}</td>
+                    <td class="text-center">
+                        {% if item.cantidad_actual <= item.stock_minimo %}
+                            <span class="badge rounded-pill bg-danger px-3 py-1">STOCK BAJO</span>
+                        {% else %}
+                            <span class="badge rounded-pill bg-success bg-opacity-10 text-success border border-success px-3 py-1">ÓPTIMO</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end pe-3">
+                        <form method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de eliminar este insumo del inventario?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="accion" value="eliminar_insumo">
+                            <input type="hidden" name="insumo_id" value="{{ item.id }}">
+                            <button type="submit" class="btn btn-sm btn-light text-danger" title="Eliminar">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        No hay insumos registrados aún. Usa el botón "Nuevo Insumo" para agregar productos.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- MODAL 1: Crear Nuevo Insumo -->
+<div class="modal fade" id="modalNuevoInsumo" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 20px;">
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="crear_insumo">
+                <div class="modal-header border-0 pb-0">
+                    <h6 class="modal-title fw-bold">REGISTRAR NUEVO INSUMO</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="label-sprint">Código SKU</label>
+                            <div class="input-group input-sprint-container">
+                                <input type="text" name="codigo_sku" class="form-control text-uppercase" placeholder="INS-001" required>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <label class="label-sprint">Unidad de Medida</label>
+                            <select name="unidad_medida" class="form-select" style="border-radius: 14px; padding: 0.75rem;" required>
+                                <option value="Galones">Galones</option>
+                                <option value="Litros">Litros</option>
+                                <option value="Unidades">Unidades</option>
+                                <option value="Botes">Botes</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="label-sprint">Nombre del Producto</label>
+                            <div class="input-group input-sprint-container">
+                                <input type="text" name="nombre_producto" class="form-control" placeholder="Ej. Shampoo Espuma Activa" required>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <label class="label-sprint">Cantidad Inicial</label>
+                            <div class="input-group input-sprint-container">
+                                <input type="number" name="cantidad_actual" class="form-control" value="10" min="0" required>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <label class="label-sprint">Stock Mínimo (Alerta)</label>
+                            <div class="input-group input-sprint-container">
+                                <input type="number" name="stock_minimo" class="form-control" value="5" min="1" required>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <label class="label-sprint">Costo Unitario ($)</label>
+                            <div class="input-group input-sprint-container">
+                                <input type="number" step="0.01" name="costo_unitario" class="form-control" value="12.50" required>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <label class="label-sprint">Proveedor</label>
+                            <div class="input-group input-sprint-container">
+                                <input type="text" name="proveedor" class="form-control" placeholder="Ej. Químicos SV">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="submit" class="btn btn-primary w-100 py-2">Guardar Insumo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 2: Registrar Entrada / Salida de Stock -->
+<div class="modal fade" id="modalMovimiento" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 20px;">
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="registrar_movimiento">
+                <div class="modal-header border-0 pb-0">
+                    <h6 class="modal-title fw-bold">REGISTRAR ENTRADA O SALIDA DE STOCK</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="label-sprint">Seleccionar Insumo</label>
+                        <select name="inventario_id" class="form-select" style="border-radius: 14px; padding: 0.75rem;" required>
+                            {% for item in insumos %}
+                            <option value="{{ item.id }}">{{ item.codigo_sku }} - {{ item.nombre_producto }} (Actual: {{ item.cantidad_actual }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="label-sprint">Tipo de Movimiento</label>
+                            <select name="tipo_movimiento" class="form-select" style="border-radius: 14px; padding: 0.75rem;" required>
+                                <option value="Salida">Salida (Consumo en patio)</option>
+                                <option value="Entrada">Entrada (Compra a proveedor)</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="label-sprint">Cantidad</label>
+                            <div class="input-group input-sprint-container">
+                                <input type="number" name="cantidad" class="form-control" value="1" min="1" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="label-sprint">Motivo / Descripción</label>
+                        <div class="input-group input-sprint-container">
+                            <input type="text" name="descripcion" class="form-control" placeholder="Ej. Entrega a lavadores turno mañana">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="submit" class="btn btn-primary w-100 py-2">Aplicar Movimiento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('buscadorInventario').addEventListener('input', function() {
+        const q = this.value.toLowerCase();
+        document.querySelectorAll('.fila-insumo').forEach(fila => {
+            fila.style.display = fila.innerText.toLowerCase().includes(q) ? '' : 'none';
+        });
+    });
+</script>
+{% endblock %}

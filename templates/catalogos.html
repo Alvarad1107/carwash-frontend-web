@@ -37,7 +37,7 @@
                             </td>
                             <td>${{ cat.comision_base|floatformat:2 }}</td>
                             <td class="text-end">
-                                <form method="POST" class="d-inline">
+                                <form method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de eliminar este registro del catálogo?');">
                                     {% csrf_token %}
                                     <input type="hidden" name="accion" value="eliminar_categoria">
                                     <input type="hidden" name="id" value="{{ cat.id }}">
@@ -84,7 +84,7 @@
                             <td><span class="badge bg-light text-dark border">{{ item.categoria_nombre }}</span></td>
                             <td class="fw-bold text-dark">${{ item.precio_base|floatformat:2 }}</td>
                             <td class="text-end">
-                                <form method="POST" class="d-inline">
+                                <form method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de eliminar este registro del catálogo?');">
                                     {% csrf_token %}
                                     <input type="hidden" name="accion" value="eliminar_precio_matriz">
                                     <input type="hidden" name="id" value="{{ item.id }}">
@@ -128,7 +128,7 @@
                             <td class="fw-bold text-dark">${{ extra.precio_fijo|floatformat:2 }}</td>
                             <td class="text-success fw-semibold">+${{ extra.comision_extra|floatformat:2 }}</td>
                             <td class="text-end">
-                                <form method="POST" class="d-inline">
+                                <form method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de eliminar este registro del catálogo?');">
                                     {% csrf_token %}
                                     <input type="hidden" name="accion" value="eliminar_adicional">
                                     <input type="hidden" name="id" value="{{ extra.id }}">

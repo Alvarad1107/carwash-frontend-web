@@ -25,6 +25,7 @@ from panel_admin.views import (
     modulo_usuarios,
     monitor_operaciones,
     registro_orden,
+    modulo_inventario,
 )
 
 urlpatterns = [
@@ -41,4 +42,5 @@ urlpatterns = [
     path("finanzas/", modulo_finanzas, name="finanzas"),
     path("catalogos/", catalogos, name="catalogos"),
     path("usuarios/", modulo_usuarios, name="usuarios"),
+    path("inventario/", modulo_inventario, name="inventario"),
 ]

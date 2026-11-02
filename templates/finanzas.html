@@ -1,11 +1,19 @@
 {% extends 'base.html' %}
-
 {% block nav_title %}FINANZAS Y PLANILLAS{% endblock %}
 
 {% block content %}
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-success{% endif %} alert-dismissible fade show rounded-4 shadow-sm mb-4" role="alert">
+        <i class="bi {% if message.tags == 'error' %}bi-exclamation-octagon-fill{% else %}bi-check-circle-fill{% endif %} me-2"></i>
+        <strong>{{ message }}</strong>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+{% endif %}
+
 <!-- Tarjetas Superiores de Control de Dinero Diario -->
 <div class="row mb-4 g-3">
-    <!-- Total Ingresos en Caja -->
     <div class="col-md-4">
         <div class="card card-sprint p-3">
             <div class="d-flex justify-content-between align-items-center">
@@ -21,7 +29,6 @@
         </div>
     </div>
 
-    <!-- Desglose Efectivo vs Digital -->
     <div class="col-md-4">
         <div class="card card-sprint p-3">
             <div class="d-flex justify-content-between align-items-center">
@@ -39,7 +46,6 @@
         </div>
     </div>
 
-    <!-- Total Planilla de Comisiones -->
     <div class="col-md-4">
         <div class="card card-sprint p-3">
             <div class="d-flex justify-content-between align-items-center">
@@ -63,7 +69,7 @@
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h6 class="fw-bold text-dark mb-0">REGISTRO DE COBROS DIARIOS</h6>
-                    <small class="text-muted">Control de ingresos por método de pago</small>
+                    <small class="text-muted">Control de ingresos y emisión de tickets</small>
                 </div>
                 <button class="btn btn-primary btn-sm px-3 py-2" style="border-radius: 10px;" data-bs-toggle="modal" data-bs-target="#modalRegistrarPago">
                     <i class="bi bi-plus-lg me-1"></i> Registrar Cobro
@@ -77,8 +83,8 @@
                             <th>Orden</th>
                             <th>Vehículo / Cliente</th>
                             <th>Método</th>
-                            <th>Cajero</th>
                             <th class="text-end">Monto</th>
+                            <th class="text-end">Ticket</th>
                         </tr>
                     </thead>
                     <tbody style="font-size: 0.9rem;">
@@ -96,8 +102,21 @@
                                     <span class="badge bg-primary bg-opacity-10 text-primary border border-primary">{{ p.metodo_pago }}</span>
                                 {% endif %}
                             </td>
-                            <td class="text-muted small">{{ p.cajero_nombre }}</td>
                             <td class="text-end fw-bold text-dark">${{ p.monto|floatformat:2 }}</td>
+                            <td class="text-end">
+                                <button type="button" class="btn btn-sm btn-outline-dark rounded-3 btn-ver-ticket"
+                                        data-orden="{{ p.orden_formateada }}"
+                                        data-cliente="{{ p.cliente_nombre }}"
+                                        data-vehiculo="{{ p.vehiculo_info }}"
+                                        data-categoria="{{ p.categoria_nombre }}"
+                                        data-metodo="{{ p.metodo_pago }}"
+                                        data-cajero="{{ p.cajero_nombre }}"
+                                        data-fecha="{{ p.fecha_pago }}"
+                                        data-monto="{{ p.monto|floatformat:2 }}"
+                                        title="Ver / Imprimir Ticket">
+                                    <i class="bi bi-printer"></i>
+                                </button>
+                            </td>
                         </tr>
                         {% empty %}
                         <tr>
@@ -123,7 +142,6 @@
                 </button>
             </div>
 
-            <!-- Resumen de Planilla por Trabajador -->
             <div class="table-responsive mb-3">
                 <table class="table table-hover align-middle border-top">
                     <thead class="table-light text-muted" style="font-size: 0.8rem;">
@@ -153,7 +171,6 @@
                 </table>
             </div>
 
-            <!-- Desglose de Lavados y División Simultánea -->
             <h6 class="fw-bold text-muted small text-uppercase mt-2 mb-2">Desglose por Orden (Lavado Individual / Simultáneo)</h6>
             <div class="table-responsive">
                 <table class="table table-sm align-middle">
@@ -197,12 +214,17 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="alert alert-info py-2 small rounded-3 mb-3">
+                        <i class="bi bi-shield-lock-fill me-1"></i>
+                        Solo se habilitan para cobro los vehículos cuyo lavado ya fue <strong>Terminado</strong>.
+                    </div>
                     <div class="mb-3">
                         <label class="label-sprint">Seleccionar Orden</label>
                         <select name="orden_id" id="selectOrdenPago" class="form-select" style="border-radius: 14px; padding: 0.75rem;" required>
                             {% for o in ordenes %}
-                            <option value="{{ o.id }}" data-total="{{ o.total_pagar }}">
+                            <option value="{{ o.id }}" data-total="{{ o.total_pagar }}" {% if not o.cobrable or o.ya_pagada %}disabled{% endif %}>
                                 Orden #{{ o.id_formateado }} - {{ o.vehiculo_info }} (${{ o.total_pagar|floatformat:2 }})
+                                {% if o.ya_pagada %}[YA PAGADA]{% elif not o.cobrable %}[{{ o.estado|upper }} - BLOQUEADO]{% else %}[LISTO PARA COBRO]{% endif %}
                             </option>
                             {% endfor %}
                         </select>
@@ -273,11 +295,11 @@
                             {% endfor %}
                         </div>
                         <small class="text-muted d-block mt-1">
-                            * Si seleccionas 2 o más operarios, la API divide equitativamente la comisión del vehículo.
+                            * La API suma automáticamente las comisiones de los servicios adicionales de la orden y las divide entre los operarios seleccionados.
                         </small>
                     </div>
                     <div class="mb-2">
-                        <label class="label-sprint">Comisión Extra por Servicios Adicionales ($)</label>
+                        <label class="label-sprint">Bono / Comisión Extra Manual ($)</label>
                         <div class="input-group input-sprint-container">
                             <input type="number" step="0.01" name="comision_extra_manual" class="form-control" value="0.00">
                         </div>
@@ -291,16 +313,114 @@
     </div>
 </div>
 
+<!-- MODAL 3: Ticket de Pago Imprimible -->
+<div class="modal fade" id="modalTicketPago" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 18px;">
+            <div class="modal-body p-4" id="areaImpresionTicket" style="font-family: 'Courier New', monospace;">
+                <div class="text-center border-bottom pb-2 mb-3">
+                    <h5 class="fw-bold mb-0">SPRINT WASH</h5>
+                    <small class="text-muted d-block">Comprobante Oficial de Pago</small>
+                    <small id="tFecha" class="text-muted"></small>
+                </div>
+                <div class="small mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>ORDEN:</span>
+                        <strong id="tOrden"></strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>CLIENTE:</span>
+                        <strong id="tCliente" class="text-end"></strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>VEHÍCULO:</span>
+                        <strong id="tVehiculo" class="text-end"></strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>CATEGORÍA:</span>
+                        <span id="tCategoria" class="text-end"></span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>MÉTODO:</span>
+                        <span id="tMetodo"></span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>CAJERO:</span>
+                        <span id="tCajero" class="text-end"></span>
+                    </div>
+                </div>
+                <div class="border-top border-bottom py-2 my-2 d-flex justify-content-between align-items-center">
+                    <span class="fw-bold">TOTAL PAGADO:</span>
+                    <span class="fs-5 fw-bold" id="tMonto"></span>
+                </div>
+                <p class="text-center small text-muted mb-0 mt-3">¡Gracias por su preferencia!</p>
+            </div>
+            <div class="modal-footer border-0 pt-0 d-flex gap-2">
+                <button type="button" class="btn btn-light flex-grow-1" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-primary flex-grow-1" onclick="imprimirTicket()">
+                    <i class="bi bi-printer me-1"></i> Imprimir
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     const selectOrden = document.getElementById('selectOrdenPago');
     const inputMonto = document.getElementById('inputMontoPago');
-    if (selectOrden && inputMonto) {
-        selectOrden.addEventListener('change', function() {
-            const opt = this.options[this.selectedIndex];
-            if (opt && opt.dataset.total) {
-                inputMonto.value = parseFloat(opt.dataset.total).toFixed(2);
+
+    function actualizarMontoSeleccionado() {
+        if (!selectOrden || !inputMonto) return;
+        const opt = selectOrden.options[selectOrden.selectedIndex];
+        if (opt && opt.dataset.total) {
+            inputMonto.value = parseFloat(opt.dataset.total).toFixed(2);
+        }
+    }
+
+    if (selectOrden) {
+        // Seleccionar automáticamente la primera opción habilitada
+        for (let i = 0; i < selectOrden.options.length; i++) {
+            if (!selectOrden.options[i].disabled) {
+                selectOrden.selectedIndex = i;
+                break;
             }
+        }
+        actualizarMontoSeleccionado();
+        selectOrden.addEventListener('change', actualizarMontoSeleccionado);
+    }
+
+    // Lógica para abrir el Ticket de Pago
+    document.querySelectorAll('.btn-ver-ticket').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.getElementById('tOrden').innerText = '#' + this.dataset.orden;
+            document.getElementById('tCliente').innerText = this.dataset.cliente;
+            document.getElementById('tVehiculo').innerText = this.dataset.vehiculo;
+            document.getElementById('tCategoria').innerText = this.dataset.categoria;
+            document.getElementById('tMetodo').innerText = this.dataset.metodo;
+            document.getElementById('tCajero').innerText = this.dataset.cajero;
+            document.getElementById('tFecha').innerText = this.dataset.fecha;
+            document.getElementById('tMonto').innerText = '$' + this.dataset.monto;
+
+            const modal = new bootstrap.Modal(document.getElementById('modalTicketPago'));
+            modal.show();
         });
+    });
+
+    function imprimirTicket() {
+        const contenido = document.getElementById('areaImpresionTicket').innerHTML;
+        const ventana = window.open('', '_blank', 'width=380,height=520');
+        ventana.document.write(`
+            <html>
+                <head>
+                    <title>Ticket Sprint Wash</title>
+                    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+                </head>
+                <body class="p-3" onload="window.print(); window.close();">
+                    ${contenido}
+                </body>
+            </html>
+        `);
+        ventana.document.close();
     }
 </script>
 {% endblock %}

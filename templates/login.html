@@ -12,51 +12,71 @@
 </head>
 <body class="d-flex align-items-center justify-content-center vh-100">
 
-    <div class="card card-sprint p-5" style="width: 100%; max-width: 400px;">
+    <div class="card card-sprint p-5" style="width: 100%; max-width: 420px;">
         
         <!-- Logo -->
         <div class="text-center mb-4">
-            <img src="{% static '../static/img/Sprint Wash Logo.png' %}" alt="Logo Sprint Wash" class="img-fluid mx-auto d-block" style="max-width: 200px;">
-            <p class="text-sprint fw-bold mt-3 mb-0" style="font-size: 0.75rem; letter-spacing: 1.5px;">BIENVENIDO DE NUEVO</p>
+            <img src="{% static 'img/Sprint Wash Logo.png' %}" alt="Logo Sprint Wash" class="img-fluid mx-auto d-block" style="max-width: 190px;">
+            <p class="text-sprint fw-bold mt-3 mb-0" style="font-size: 0.75rem; letter-spacing: 1.5px;">CONTROL DE ACCESO</p>
         </div>
 
-        <form method="POST" action="{% url 'login' %}"> {% csrf_token %}
+        {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-danger py-2 small rounded-3 text-center mb-3">
+                <i class="bi bi-exclamation-circle me-1"></i>{{ message }}
+            </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="POST" action="{% url 'login' %}">
+            {% csrf_token %}
             <!-- Correo electrónico -->
-            <div class="mb-4 text-start">
+            <div class="mb-3 text-start">
                 <label class="label-sprint">Correo electrónico</label>
                 <div class="input-group input-sprint-container">
                     <span class="input-group-text"><i class="bi bi-envelope text-muted"></i></span>
-                    <input type="email" class="form-control" placeholder="alex@nexo.app">
+                    <input type="email" name="correo" class="form-control" placeholder="don.edwin@sprintwash.local" required>
                 </div>
             </div>
 
             <!-- Contraseña -->
-            <div class="mb-3 text-start">
+            <div class="mb-4 text-start">
                 <label class="label-sprint">Contraseña</label>
                 <div class="input-group input-sprint-container">
                     <span class="input-group-text"><i class="bi bi-lock text-muted"></i></span>
-                    <input type="password" class="form-control" placeholder="Contraseña">
-                    <span class="input-group-text pe-3"><i class="bi bi-eye text-muted" style="cursor: pointer;"></i></span>
+                    <input type="password" name="password" id="inputPasswordLogin" class="form-control" placeholder="••••••••" required>
+                    <span class="input-group-text pe-3" id="btnTogglePass" style="cursor: pointer;">
+                        <i class="bi bi-eye text-muted"></i>
+                    </span>
                 </div>
             </div>
 
-            <!-- Olvidaste contraseña -->
-            <div class="d-flex justify-content-end mb-4">
-                <a href="#" class="text-sprint text-decoration-none fw-semibold" style="font-size: 0.8rem;">¿Olvidaste tu contraseña?</a>
-            </div>
-
-            <!-- Botón Principal Flotante -->
-            <button type="submit" class="btn btn-primary w-100 py-3 mb-4 d-flex justify-content-center align-items-center gap-2">
+            <!-- Botón Principal -->
+            <button type="submit" class="btn btn-primary w-100 py-3 mb-3 d-flex justify-content-center align-items-center gap-2">
                 <span>Iniciar sesión</span>
                 <i class="bi bi-arrow-right"></i>
             </button>
 
-            <!-- Crear cuenta -->
-            <p class="text-muted text-center mb-0" style="font-size: 0.85rem;">
-                ¿Aún no tienes cuenta? <a href="#" class="text-sprint fw-bold text-decoration-none">Crear cuenta</a>
-            </p>
+            <div class="bg-light rounded-3 p-2 text-center small text-muted">
+                <span class="d-block fw-semibold text-dark">Accesos Demo (Clave: sprintwash123):</span>
+                <span>Admin: <code>don.edwin@sprintwash.local</code></span><br>
+                <span>Cajero: <code>juan.perez@sprintwash.local</code></span>
+            </div>
         </form>
     </div>
 
+    <script>
+        document.getElementById('btnTogglePass').addEventListener('click', function() {
+            const input = document.getElementById('inputPasswordLogin');
+            const icon = this.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.replace('bi-eye', 'bi-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.replace('bi-eye-slash', 'bi-eye');
+            }
+        });
+    </script>
 </body>
 </html>

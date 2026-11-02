@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-0">Panel de Control General</h2>
+            <p class="text-muted mb-0">Resumen operativo y financiero en tiempo real</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'caja' %}" class="btn btn-primary fw-semibold">+ Nueva Orden</a>
+            <a href="/monitor/" class="btn btn-outline-dark fw-semibold">Ver Monitor de Patio</a>
+        </div>
+    </div>
+
+    <!-- Tarjetas de KPIs Financieros y Operativos -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 border-start border-primary border-4 h-100">
+                <div class="card-body">
+                    <small class="text-muted text-uppercase fw-bold">Venta del Día</small>
+                    <h3 class="fw-bold text-primary mt-1 mb-0">${{ ingreso_dia }}</h3>
+                    <small class="text-muted">Semana: ${{ ingreso_semana }}</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 border-start border-success border-4 h-100">
+                <div class="card-body">
+                    <small class="text-muted text-uppercase fw-bold">Ingreso Mensual</small>
+                    <h3 class="fw-bold text-success mt-1 mb-0">${{ ingreso_mes }}</h3>
+                    <small class="text-muted">Acumulado del mes actual</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 border-start border-warning border-4 h-100">
+                <div class="card-body">
+                    <small class="text-muted text-uppercase fw-bold">Vehículos en Patio</small>
+                    <h3 class="fw-bold text-warning mt-1 mb-0">{{ en_proceso }}</h3>
+                    <small class="text-muted">Terminados hoy: {{ terminados_hoy }}</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 border-start border-info border-4 h-100">
+                <div class="card-body">
+                    <small class="text-muted text-uppercase fw-bold">Bahías Disponibles</small>
+                    <h3 class="fw-bold text-info mt-1 mb-0">{{ bahias_libres }} / 6</h3>
+                    <small class="text-muted">Capacidad operativa</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Estado de las 6 Bahías -->
+        <div class="col-lg-7">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white py-3">
+                    <h5 class="fw-bold mb-0">Estado de las 6 Bahías en Vivo</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        {% for b in bahias %}
+                        <div class="col-md-4 col-6">
+                            <div class="p-3 rounded border text-center {% if b.estado == 'Ocupada' %}bg-danger bg-opacity-10 border-danger{% else %}bg-success bg-opacity-10 border-success{% endif %}">
+                                <h6 class="fw-bold mb-1">{{ b.nombre }}</h6>
+                                <span class="badge {% if b.estado == 'Ocupada' %}bg-danger{% else %}bg-success{% endif %}">
+                                    {{ b.estado }}
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Últimas Órdenes -->
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0">Órdenes Recientes</h5>
+                    <a href="/finanzas/" class="btn btn-sm btn-outline-secondary">Ir a Caja / Finanzas</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th># Orden</th>
+                                    <th>Bahía</th>
+                                    <th>Estado</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for o in ultimas_ordenes %}
+                                <tr>
+                                    <td class="fw-bold">#{{ o.id }}</td>
+                                    <td>Bahía {{ o.bahia_id }}</td>
+                                    <td><span class="badge bg-secondary">{{ o.estado }}</span></td>
+                                    <td class="fw-semibold">${{ o.total_pagar }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-4">No hay órdenes registradas aún.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alertas de Stock Mínimo -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold text-danger mb-0">Alertas de Stock Mínimo</h5>
+                    <a href="/inventario/" class="btn btn-sm btn-outline-danger">Ver Inventario</a>
+                </div>
+                <div class="card-body">
+                    {% if alertas_stock %}
+                        <div class="list-group list-group-flush">
+                            {% for item in alertas_stock %}
+                            <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="fw-bold mb-0 text-danger">{{ item.nombre_producto }}</h6>
+                                    <small class="text-muted">SKU: {{ item.codigo_sku }} (Mínimo: {{ item.stock_minimo }} {{ item.unidad_medida }})</small>
+                                </div>
+                                <span class="badge bg-danger rounded-pill fs-6">
+                                    Quedan {{ item.cantidad_actual }}
+                                </span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted py-5">
+                            <p class="mb-0 fw-semibold text-success">Todo el inventario está en niveles óptimos o pendiente de sincronizar.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
