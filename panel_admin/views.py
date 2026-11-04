@@ -1,9 +1,74 @@
+from django.shortcuts import redirect
+from functools import wraps
 from django.contrib import messages
 from datetime import datetime, timedelta
 from django.shortcuts import render, redirect
+from datetime import datetime, timedelta, timezone
 import requests
 
 API_URL = "http://127.0.0.1:8000"
+
+
+def login_requerido(view_func):
+    """Evita que entren a cualquier módulo si no han iniciado sesión."""
+
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.session.get("usuario_id"):
+            messages.error(request, "Por favor inicie sesión para continuar.")
+            return redirect("login")
+        return view_func(request, *args, **kwargs)
+
+    return wrapper
+
+
+def solo_administrador(view_func):
+    """Restringe el acceso exclusivamente al rol Administrador (Encargado General)."""
+
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.session.get("usuario_id"):
+            return redirect("login")
+        if request.session.get("rol_id") != 1:
+            messages.error(
+                request, "Acceso denegado. Se requieren privilegios de Administrador."
+            )
+            return redirect("monitor")
+        return view_func(request, *args, **kwargs)
+
+    return wrapper
+
+
+def cajero_o_admin(view_func):
+    """Permite acceso a Administradores y Cajeros (bloquea a Operarios/Supervisores en áreas financieras)."""
+
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.session.get("usuario_id"):
+            return redirect("login")
+        if request.session.get("rol_id") == 3:  # Operario / Supervisor
+            messages.error(
+                request,
+                "Acceso restringido. Esta área es exclusiva para Caja y Administración.",
+            )
+            return redirect("monitor")
+        return view_func(request, *args, **kwargs)
+
+    return wrapper
+
+
+def es_fecha_de_hoy(fecha_str):
+    """Verifica si una fecha ISO pertenece al día de hoy (considerando hora local y UTC)."""
+    hoy_local = datetime.now().date()
+    hoy_utc = datetime.now(timezone.utc).date()
+    if not fecha_str:
+        return True
+    try:
+        fecha_orden = datetime.fromisoformat(
+            str(fecha_str).replace("Z", "")).date()
+        return fecha_orden in (hoy_local, hoy_utc)
+    except Exception:
+        return True
 
 
 def obtener_json(endpoint):
@@ -17,87 +82,68 @@ def obtener_json(endpoint):
     return []
 
 
+@cajero_o_admin
 def dashboard_prueba(request):
     obtener_json("/finanzas/usuarios")
     hoy = datetime.now().date()
     inicio_semana = hoy - timedelta(days=hoy.weekday())
 
-    ordenes = []
-    insumos = []
-    bahias_api = []
+    ordenes = obtener_json("/ordenes/")
+    insumos = obtener_json("/inventario/")
 
-    # 1. Obtener órdenes
-    try:
-        res_ordenes = requests.get(f"{API_URL}/ordenes/", timeout=3)
-        if res_ordenes.status_code == 200:
-            ordenes = res_ordenes.json()
-    except Exception:
-        pass
-
-    # 2. Obtener inventario (preparado para cuando Erick suba su router)
-    try:
-        res_inv = requests.get(f"{API_URL}/inventario/", timeout=2)
-        if res_inv.status_code == 200:
-            insumos = res_inv.json()
-    except Exception:
-        pass
-
-    # 3. Calcular ingresos (Diario, Semanal, Mensual) y conteo de estados
     ingreso_dia = 0.0
     ingreso_semana = 0.0
     ingreso_mes = 0.0
     en_proceso = 0
     terminados_hoy = 0
     bahias_ocupadas_ids = set()
+    ordenes_hoy = []
 
     for o in ordenes:
         estado = str(o.get("estado", "")).lower()
         total = float(o.get("total_pagar", 0) or 0)
-
-        # Fecha de la orden
         fecha_str = o.get("created_at", "")
+
         fecha_orden = hoy
         if fecha_str:
             try:
                 fecha_orden = datetime.fromisoformat(
-                    fecha_str.replace("Z", "")
+                    str(fecha_str).replace("Z", "")
                 ).date()
             except Exception:
                 pass
 
-        # Contabilizar vehículos activos en bahía
-        if estado in ["pendiente", "en proceso", "en lavado", "lavando"]:
-            en_proceso += 1
-            if o.get("bahia_id"):
-                bahias_ocupadas_ids.add(int(o.get("bahia_id")))
+        de_hoy = es_fecha_de_hoy(fecha_str)
 
-        if (
-            estado in ["terminado", "listo para entrega",
-                       "pagado", "entregado"]
-            and fecha_orden == hoy
-        ):
-            terminados_hoy += 1
+        # Solo procesamos en el panel operativo las órdenes del día de hoy
+        if de_hoy:
+            ordenes_hoy.append(o)
 
-        # Sumar ingresos de órdenes pagadas/terminadas
-        if estado in ["pagado", "terminado", "listo para entrega", "entregado"]:
-            if fecha_orden == hoy:
+            if estado in ["pendiente", "en proceso", "en lavado", "lavando"]:
+                en_proceso += 1
+                if o.get("bahia_id"):
+                    bahias_ocupadas_ids.add(int(o.get("bahia_id")))
+
+            if estado in ["terminado", "listo para entrega", "pagado", "entregado"]:
+                terminados_hoy += 1
                 ingreso_dia += total
+
+        # Acumulados históricos de semana y mes
+        if estado in ["pagado", "terminado", "listo para entrega", "entregado"]:
             if fecha_orden >= inicio_semana:
                 ingreso_semana += total
             if fecha_orden.year == hoy.year and fecha_orden.month == hoy.month:
                 ingreso_mes += total
 
-    # 4. Construir estado en vivo de las 6 Bahías
-    bahias = []
-    for i in range(1, 7):
-        ocupada = i in bahias_ocupadas_ids
-        bahias.append({
+    bahias = [
+        {
             "id": i,
             "nombre": f"Bahía {i}",
-            "estado": "Ocupada" if ocupada else "Disponible",
-        })
+            "estado": "Ocupada" if i in bahias_ocupadas_ids else "Disponible",
+        }
+        for i in range(1, 7)
+    ]
 
-    # 5. Filtrar alertas de stock mínimo
     alertas_stock = [
         item
         for item in insumos
@@ -113,16 +159,18 @@ def dashboard_prueba(request):
         "bahias": bahias,
         "bahias_libres": 6 - len(bahias_ocupadas_ids),
         "alertas_stock": alertas_stock,
+        # Mostramos únicamente las órdenes del día de hoy ordenadas de la más reciente a la más antigua
         "ultimas_ordenes": sorted(
-            ordenes, key=lambda x: x.get("id", 0), reverse=True
-        )[:6],
+            ordenes_hoy, key=lambda x: x.get("id", 0), reverse=True
+        ),
     }
     return render(request, "dashboard.html", context)
 
 
 def login_prueba(request):
     if request.GET.get("logout"):
-        request.session.flush()
+        request.session.flush()  # Borra todas las variables de sesión (Cierra el turno)
+        messages.success(request, "Sesión cerrada correctamente. Buen turno.")
         return redirect("login")
 
     if request.method == "POST":
@@ -141,8 +189,24 @@ def login_prueba(request):
                     )
                     return render(request, "login.html")
 
+                # Validar contra el endpoint JWT de la API o claves demo
+                login_valido = False
                 clave_guardada = u.get("password_hash", "")
-                if password in [clave_guardada, "sprintwash123", "admin123", "1234"]:
+                if password in [clave_guardada, "sprintwash123", "hash_demo_123", "admin123", "1234"]:
+                    login_valido = True
+                else:
+                    try:
+                        res_auth = requests.post(
+                            f"{API_URL}/auth/login",
+                            json={"correo": correo, "password": password},
+                            timeout=4,
+                        )
+                        if res_auth.status_code == 200:
+                            login_valido = True
+                    except Exception:
+                        pass
+
+                if login_valido:
                     rol_id = u.get("rol_id", 1)
                     request.session["usuario_id"] = u.get("id")
                     request.session["usuario_nombre"] = u.get(
@@ -150,13 +214,14 @@ def login_prueba(request):
                     request.session["rol_id"] = rol_id
                     request.session["rol_nombre"] = roles_dict.get(
                         rol_id, "Usuario")
-                    return redirect("dashboard" if rol_id == 1 else "monitor")
+                    return redirect("dashboard" if rol_id in [1, 2] else "monitor")
 
         messages.error(request, "Correo o contraseña incorrectos.")
 
     return render(request, "login.html")
 
 
+@login_requerido
 def monitor_operaciones(request):
     ordenes_lista = []
     conteo_pendientes = 0
@@ -171,8 +236,11 @@ def monitor_operaciones(request):
     clientes_dict = {c["id"]: c for c in clientes}
 
     for o in ordenes:
-        estado = o.get("estado", "Pendiente")
+        # Filtrar para mostrar únicamente las órdenes del día actual
+        if not es_fecha_de_hoy(o.get("created_at", "")):
+            continue
 
+        estado = o.get("estado", "Pendiente")
         if estado == "Pendiente":
             conteo_pendientes += 1
             tiempo_texto = "En espera"
@@ -198,13 +266,17 @@ def monitor_operaciones(request):
             "id": o.get("id"),
             "cliente_nombre": cliente.get("nombre_completo", "Cliente General"),
             "vehiculo_info": f"{placa} / {detalle_auto}" if detalle_auto else placa,
-            "servicio_total": f"Orden de Lavado (${float(o.get('total_pagar', 0)):.2f})",
+            "servicio_total": (
+                f"Orden de Lavado (${float(o.get('total_pagar', 0)):.2f})"
+            ),
             "tiempo": tiempo_texto,
             "estado": estado,
         })
 
     contexto = {
-        "ordenes": ordenes_lista,
+        "ordenes": sorted(
+            ordenes_lista, key=lambda x: x.get("id", 0), reverse=True
+        ),
         "pendientes": conteo_pendientes,
         "en_proceso": conteo_en_proceso,
         "terminados": conteo_terminados,
@@ -212,6 +284,7 @@ def monitor_operaciones(request):
     return render(request, "monitor.html", contexto)
 
 
+@login_requerido
 def cambiar_estado_orden(request, orden_id):
     if request.method == "POST":
         nuevo_estado = request.POST.get("estado")
@@ -228,6 +301,7 @@ def cambiar_estado_orden(request, orden_id):
     return redirect("monitor")
 
 
+@solo_administrador
 def catalogos(request):
     if request.method == "POST":
         accion = request.POST.get("accion")
@@ -337,6 +411,7 @@ def catalogos(request):
     return render(request, "catalogos.html", contexto)
 
 
+@cajero_o_admin
 def registro_orden(request):
     if request.method == "POST":
         accion = request.POST.get("accion")
@@ -479,6 +554,7 @@ def registro_orden(request):
     return render(request, "registro_orden.html", contexto)
 
 
+@cajero_o_admin
 def modulo_finanzas(request):
     if request.method == "POST":
         accion = request.POST.get("accion")
@@ -620,6 +696,18 @@ def modulo_finanzas(request):
                 "total_comision": acumulado_por_op.get(uid, 0.0),
             })
 
+# Conteo de vehículos lavados segmentados por categoría (Sección 4.7)
+    conteo_por_categoria = {}
+    for oi in ordenes_info:
+        if oi["estado"] not in ["Pendiente"]:
+            cat_nom = oi["categoria_nombre"]
+            conteo_por_categoria[cat_nom] = conteo_por_categoria.get(
+                cat_nom, 0) + 1
+
+    resumen_categorias = [
+        {"categoria": k, "cantidad": v} for k, v in conteo_por_categoria.items()
+    ]
+
     contexto = {
         "ordenes": ordenes_info,
         "usuarios": usuarios,
@@ -631,10 +719,12 @@ def modulo_finanzas(request):
         "total_comisiones": total_comisiones,
         "resumen_planilla": resumen_planilla,
         "detalle_comisiones": detalle_comisiones,
+        "resumen_categorias": resumen_categorias,
     }
     return render(request, "finanzas.html", contexto)
 
 
+@solo_administrador
 def modulo_usuarios(request):
     if request.method == "POST":
         accion = request.POST.get("accion")
@@ -669,6 +759,7 @@ def modulo_usuarios(request):
     return render(request, "usuarios.html", {"usuarios": usuarios})
 
 
+@login_requerido
 def modulo_inventario(request):
     if request.method == "POST":
         accion = request.POST.get("accion")
@@ -710,18 +801,43 @@ def modulo_inventario(request):
         return redirect("inventario")
 
     insumos = obtener_json("/inventario/")
+    movimientos = obtener_json("/inventario/movimientos")
 
-    # Calcular KPIs rápidos para la vista
+    insumos_dict = {i["id"]: i["nombre_producto"] for i in insumos}
+    unidades_dict = {i["id"]: i["unidad_medida"] for i in insumos}
+
+    total_retirados = sum(
+        int(m.get("cantidad", 0))
+        for m in movimientos
+        if m.get("tipo_movimiento") == "Salida"
+    )
+    for m in movimientos:
+        m["producto_nombre"] = insumos_dict.get(
+            m.get("inventario_id"), "Insumo")
+        m["unidad"] = unidades_dict.get(m.get("inventario_id"), "Unidades")
+        m["fecha_corta"] = (
+            str(m.get("fecha_movimiento", ""))[:16].replace("T", " ")
+        )
+
     total_insumos = len(insumos)
-    valor_inventario = sum(float(i.get("costo_unitario", 0))
-                           * int(i.get("cantidad_actual", 0)) for i in insumos)
-    alertas_criticas = sum(1 for i in insumos if int(
-        i.get("cantidad_actual", 0)) <= int(i.get("stock_minimo", 0)))
+    valor_inventario = sum(
+        float(i.get("costo_unitario", 0)) * int(i.get("cantidad_actual", 0))
+        for i in insumos
+    )
+    alertas_criticas = sum(
+        1
+        for i in insumos
+        if int(i.get("cantidad_actual", 0)) <= int(i.get("stock_minimo", 0))
+    )
 
     contexto = {
         "insumos": insumos,
         "total_insumos": total_insumos,
         "valor_inventario": valor_inventario,
-        "alertas_criticas": alertas_criticas
+        "alertas_criticas": alertas_criticas,
+        "total_retirados": total_retirados,
+        "movimientos": sorted(
+            movimientos, key=lambda x: x.get("id", 0), reverse=True
+        )[:10],
     }
     return render(request, "inventario.html", contexto)

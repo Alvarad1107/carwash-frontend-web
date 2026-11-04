@@ -198,6 +198,16 @@
                     </tbody>
                 </table>
             </div>
+            <h6 class="fw-bold text-muted small text-uppercase mt-4 mb-2">Vehículos Atendidos por Categoría</h6>
+            <div class="d-flex flex-wrap gap-2">
+                {% for rc in resumen_categorias %}
+                <span class="badge bg-light text-dark border px-3 py-2">
+                    {{ rc.categoria }}: <strong class="text-sprint">{{ rc.cantidad }}</strong>
+                </span>
+                {% empty %}
+                <span class="text-muted small">Sin vehículos procesados aún.</span>
+                {% endfor %}
+            </div>
         </div>
     </div>
 </div>
