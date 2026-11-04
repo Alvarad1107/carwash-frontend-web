@@ -169,7 +169,7 @@ def dashboard_prueba(request):
 
 def login_prueba(request):
     if request.GET.get("logout"):
-        request.session.flush()  # Borra todas las variables de sesión (Cierra el turno)
+        request.session.flush()
         messages.success(request, "Sesión cerrada correctamente. Buen turno.")
         return redirect("login")
 
@@ -177,46 +177,43 @@ def login_prueba(request):
         correo = request.POST.get("correo", "").strip().lower()
         password = request.POST.get("password", "").strip()
 
-        usuarios = obtener_json("/finanzas/usuarios")
-        roles = obtener_json("/finanzas/roles")
-        roles_dict = {r["id"]: r["nombre"] for r in roles}
+        try:
+            # Consumimos directamente el endpoint oficial de autenticación en la API
+            res_auth = requests.post(
+                f"{API_URL}/auth/login",
+                json={"correo": correo, "password": password},
+                timeout=5,
+            )
 
-        for u in usuarios:
-            if u.get("correo", "").lower() == correo:
-                if u.get("estado") == 0:
-                    messages.error(
-                        request, "Esta cuenta de usuario se encuentra inactiva."
-                    )
-                    return render(request, "login.html")
+            if res_auth.status_code == 200:
+                datos = res_auth.json()
+                rol_nombre = datos.get("rol", "SIN ROL")
+                rol_upper = rol_nombre.upper()
 
-                # Validar contra el endpoint JWT de la API o claves demo
-                login_valido = False
-                clave_guardada = u.get("password_hash", "")
-                if password in [clave_guardada, "sprintwash123", "hash_demo_123", "admin123", "1234"]:
-                    login_valido = True
+                # Asignar el nivel de acceso según el rol devuelto por MySQL
+                if "ENCARGADO" in rol_upper or "ADMIN" in rol_upper:
+                    rol_id = 1
+                elif "CAJERO" in rol_upper:
+                    rol_id = 2
                 else:
-                    try:
-                        res_auth = requests.post(
-                            f"{API_URL}/auth/login",
-                            json={"correo": correo, "password": password},
-                            timeout=4,
-                        )
-                        if res_auth.status_code == 200:
-                            login_valido = True
-                    except Exception:
-                        pass
+                    rol_id = 3
 
-                if login_valido:
-                    rol_id = u.get("rol_id", 1)
-                    request.session["usuario_id"] = u.get("id")
-                    request.session["usuario_nombre"] = u.get(
-                        "nombre_completo")
-                    request.session["rol_id"] = rol_id
-                    request.session["rol_nombre"] = roles_dict.get(
-                        rol_id, "Usuario")
-                    return redirect("dashboard" if rol_id in [1, 2] else "monitor")
+                # Guardar los datos provenientes de la BD y el token JWT en la sesión
+                request.session["access_token"] = datos.get("access_token")
+                request.session["usuario_id"] = datos.get("usuario_id")
+                request.session["usuario_nombre"] = datos.get("nombre")
+                request.session["rol_id"] = rol_id
+                request.session["rol_nombre"] = rol_nombre
 
-        messages.error(request, "Correo o contraseña incorrectos.")
+                return redirect("dashboard" if rol_id in [1, 2] else "monitor")
+            else:
+                # Muestra el mensaje exacto de la API (401 credenciales inválidas o 403 inactivo)
+                detalle = res_auth.json().get("detail", "Correo o contraseña incorrectos.")
+                messages.error(request, detalle)
+
+        except Exception:
+            messages.error(
+                request, "Error al conectar con el servidor de autenticación.")
 
     return render(request, "login.html")
 
@@ -786,7 +783,7 @@ def modulo_inventario(request):
                     f"{API_URL}/inventario/movimiento",
                     json={
                         "inventario_id": int(request.POST.get("inventario_id")),
-                        "usuario_id": 1,
+                        "usuario_id": int(request.session.get("usuario_id", 1)),
                         "tipo_movimiento": request.POST.get("tipo_movimiento"),
                         "cantidad": int(request.POST.get("cantidad", 1)),
                         "descripcion": (

@@ -81,10 +81,10 @@
             <div class="d-none d-lg-flex align-items-center gap-3">
                 <div class="text-end">
                     <span class="d-block text-dark fw-semibold" style="font-size: 0.85rem;">
-                        {{ request.session.usuario_nombre|default:"Don Edwin Martínez" }}
+                        {{ request.session.usuario_nombre }}
                     </span>
                     <span class="d-block text-muted" style="font-size: 0.75rem;">
-                        {{ request.session.rol_nombre|default:"ENCARGADO GENERAL" }}
+                        {{ request.session.rol_nombre }}
                     </span>
                 </div>
                 <div class="border-start ps-3">
