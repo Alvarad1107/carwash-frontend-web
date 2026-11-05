@@ -178,7 +178,6 @@ def login_prueba(request):
         password = request.POST.get("password", "").strip()
 
         try:
-            # Consumimos directamente el endpoint oficial de autenticación en la API
             res_auth = requests.post(
                 f"{API_URL}/auth/login",
                 json={"correo": correo, "password": password},
@@ -190,25 +189,36 @@ def login_prueba(request):
                 rol_nombre = datos.get("rol", "SIN ROL")
                 rol_upper = rol_nombre.upper()
 
-                # Asignar el nivel de acceso según el rol devuelto por MySQL
                 if "ENCARGADO" in rol_upper or "ADMIN" in rol_upper:
                     rol_id = 1
+                    rol_mostrar = "ADMINISTRADOR"
                 elif "CAJERO" in rol_upper:
                     rol_id = 2
+                    rol_mostrar = "CAJERO"
                 else:
                     rol_id = 3
+                    rol_mostrar = "OPERARIO / SUPERVISOR"
 
-                # Guardar los datos provenientes de la BD y el token JWT en la sesión
+                # Bloquear acceso al Sistema Web para Operarios (Exclusivos de App Móvil)
+                if rol_id == 3:
+                    messages.error(
+                        request,
+                        "Acceso denegado: El personal operativo debe ingresar desde la Aplicación Móvil.",
+                    )
+                    return render(request, "login.html")
+
                 request.session["access_token"] = datos.get("access_token")
                 request.session["usuario_id"] = datos.get("usuario_id")
                 request.session["usuario_nombre"] = datos.get("nombre")
                 request.session["rol_id"] = rol_id
-                request.session["rol_nombre"] = rol_nombre
+                request.session["rol_nombre"] = rol_mostrar
 
-                return redirect("dashboard" if rol_id in [1, 2] else "monitor")
+                return redirect("dashboard")
             else:
-                # Muestra el mensaje exacto de la API (401 credenciales inválidas o 403 inactivo)
-                detalle = res_auth.json().get("detail", "Correo o contraseña incorrectos.")
+                try:
+                    detalle = res_auth.json().get("detail", "Correo o contraseña incorrectos.")
+                except Exception:
+                    detalle = "Error al validar credenciales con la API."
                 messages.error(request, detalle)
 
         except Exception:
@@ -723,11 +733,14 @@ def modulo_finanzas(request):
 
 @solo_administrador
 def modulo_usuarios(request):
+    usuarios = obtener_json("/finanzas/usuarios")
+    roles = obtener_json("/finanzas/roles")
+
     if request.method == "POST":
         accion = request.POST.get("accion")
         try:
             if accion == "crear_usuario":
-                requests.post(
+                res = requests.post(
                     f"{API_URL}/finanzas/usuarios",
                     json={
                         "rol_id": int(request.POST.get("rol_id", 3)),
@@ -737,18 +750,59 @@ def modulo_usuarios(request):
                     },
                     timeout=5,
                 )
+                if res.status_code == 200:
+                    messages.success(
+                        request, "Empleado registrado correctamente.")
+                else:
+                    messages.error(request, res.json().get(
+                        "detail", "No se pudo crear el usuario."))
+
             elif accion == "alternar_estado":
-                uid = request.POST.get("usuario_id")
+                uid = int(request.POST.get("usuario_id", 0))
+                mi_id = int(request.session.get("usuario_id", 0))
+                usuario_objetivo = next(
+                    (u for u in usuarios if u["id"] == uid), None)
+
+                # 1. Evitar que el usuario en sesión se desactive a sí mismo
+                if uid == mi_id:
+                    messages.error(
+                        request, "Operación bloqueada: No puedes desactivar tu propia cuenta en sesión activa.")
+                    return redirect("usuarios")
+
+                if usuario_objetivo and usuario_objetivo.get("estado") == 1:
+                    # 2. Garantizar que siempre quede al menos 1 Administrador activo
+                    if usuario_objetivo.get("rol_id") == 1:
+                        admins_activos = sum(1 for u in usuarios if u.get(
+                            "rol_id") == 1 and u.get("estado") == 1)
+                        if admins_activos <= 1:
+                            messages.error(
+                                request, "Operación bloqueada: Debe existir al menos un Administrador activo en el sistema.")
+                            return redirect("usuarios")
+
+                    # 3. Evitar desactivar operarios asignados a una orden actualmente "En proceso"
+                    ordenes_en_proceso = {
+                        o["id"] for o in obtener_json("/ordenes/") if o.get("estado") == "En proceso"
+                    }
+                    comisiones = obtener_json("/finanzas/comisiones")
+                    en_uso = any(
+                        c.get("usuario_id") == uid and c.get(
+                            "orden_id") in ordenes_en_proceso
+                        for c in comisiones
+                    )
+                    if en_uso:
+                        messages.error(
+                            request, "No se puede desactivar: El usuario tiene una orden en proceso en este momento.")
+                        return redirect("usuarios")
+
                 requests.patch(
                     f"{API_URL}/finanzas/usuarios/{uid}/estado", timeout=5)
+                messages.success(request, "Estado del usuario actualizado.")
         except Exception as e:
             print(f"Error en módulo de usuarios: {e}")
         return redirect("usuarios")
 
-    usuarios = obtener_json("/finanzas/usuarios")
-    roles = obtener_json("/finanzas/roles")
-    roles_dict = {r["id"]: r["nombre"] for r in roles}
-
+    roles_dict = {r["id"]: ("ADMINISTRADOR" if r["id"]
+                            == 1 else r["nombre"]) for r in roles}
     for u in usuarios:
         u["rol_nombre"] = roles_dict.get(
             u.get("rol_id"), "OPERARIO / SUPERVISOR")
