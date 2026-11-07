@@ -274,7 +274,7 @@
 <div class="modal fade" id="modalAsignarComision" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow" style="border-radius: 20px;">
-            <form method="POST">
+            <form method="POST" onsubmit="return confirmarOperarios(this);">
                 {% csrf_token %}
                 <input type="hidden" name="accion" value="asignar_operarios">
                 <div class="modal-header border-0 pb-0">
@@ -282,26 +282,35 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="alert alert-warning py-2 small rounded-3 mb-3">
+                        <i class="bi bi-lock-fill me-1"></i>
+                        Una vez distribuida la comisión de una orden, quedará <strong>cerrada</strong> y no podrá editarse.
+                    </div>
                     <div class="mb-3">
-                        <label class="label-sprint">Orden de Lavado</label>
+                        <label class="label-sprint">Orden de Lavado (Turno de Hoy)</label>
                         <select name="orden_id" class="form-select" style="border-radius: 14px; padding: 0.75rem;" required>
                             {% for o in ordenes %}
-                            <option value="{{ o.id }}">
-                                Orden #{{ o.id_formateado }} - {{ o.vehiculo_info }} (Comisión Base: ${{ o.comision_base|floatformat:2 }})
+                            <option value="{{ o.id }}" {% if o.ya_comisionada %}disabled{% endif %}>
+                                Orden #{{ o.id_formateado }} - {{ o.vehiculo_info }} (Base: ${{ o.comision_base|floatformat:2 }})
+                                {% if o.ya_comisionada %}[COMISIÓN YA DISTRIBUIDA - CERRADA]{% else %}[DISPONIBLE]{% endif %}
                             </option>
+                            {% empty %}
+                            <option value="" disabled selected>No hay órdenes registradas en el turno de hoy</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="mb-3">
                         <label class="label-sprint">Selecciona 1 o varios Operarios (División Automática)</label>
                         <div class="border rounded-4 p-3 bg-light">
-                            {% for u in usuarios %}
+                            {% for u in operarios %}
                             <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" name="operarios_ids" value="{{ u.id }}" id="op_{{ u.id }}" {% if forloop.last %}checked{% endif %}>
+                                <input class="form-check-input" type="checkbox" name="operarios_ids" value="{{ u.id }}" id="op_{{ u.id }}" {% if forloop.first %}checked{% endif %}>
                                 <label class="form-check-label fw-semibold text-dark" for="op_{{ u.id }}">
                                     {{ u.nombre_completo }}
                                 </label>
                             </div>
+                            {% empty %}
+                            <span class="text-muted small">No hay operarios activos disponibles.</span>
                             {% endfor %}
                         </div>
                         <small class="text-muted d-block mt-1">
@@ -316,7 +325,9 @@
                     </div>
                 </div>
                 <div class="modal-footer border-0 pt-0">
-                    <button type="submit" class="btn btn-primary w-100 py-2">Calcular y Guardar en Planilla</button>
+                    <button type="submit" class="btn btn-primary w-100 py-2" {% if not ordenes %}disabled{% endif %}>
+                        Calcular y Cerrar en Planilla
+                    </button>
                 </div>
             </form>
         </div>
@@ -431,6 +442,17 @@
             </html>
         `);
         ventana.document.close();
+    }
+
+    function confirmarOperarios(form) {
+    const seleccionados = Array.from(form.querySelectorAll('input[name="operarios_ids"]:checked'))
+        .map(cb => cb.nextElementSibling.innerText.trim());
+    if (seleccionados.length === 0) {
+        alert("Debes seleccionar al menos un operario.");
+        return false;
+    }
+    const modo = seleccionados.length === 1 ? "LAVADO INDIVIDUAL (1 operario)" : `LAVADO SIMULTÁNEO (${seleccionados.length} operarios)`;
+    return confirm(`¿Confirmas registrar esta comisión como ${modo} para: ${seleccionados.join(", ")}?\n\nUna vez guardada, la orden quedará cerrada y no podrá modificarse.`);
     }
 </script>
 {% endblock %}

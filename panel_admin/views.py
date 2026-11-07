@@ -230,6 +230,20 @@ def login_prueba(request):
 
 @login_requerido
 def monitor_operaciones(request):
+    hoy = datetime.now().date()
+    ayer = hoy - timedelta(days=1)
+
+    # Leer la fecha seleccionada en el filtro o usar HOY por defecto
+    fecha_filtro_str = request.GET.get("fecha", "")
+    try:
+        fecha_seleccionada = (
+            datetime.strptime(fecha_filtro_str, "%Y-%m-%d").date()
+            if fecha_filtro_str
+            else hoy
+        )
+    except Exception:
+        fecha_seleccionada = hoy
+
     ordenes_lista = []
     conteo_pendientes = 0
     conteo_en_proceso = 0
@@ -243,8 +257,24 @@ def monitor_operaciones(request):
     clientes_dict = {c["id"]: c for c in clientes}
 
     for o in ordenes:
-        # Filtrar para mostrar únicamente las órdenes del día actual
-        if not es_fecha_de_hoy(o.get("created_at", "")):
+        fecha_str = o.get("created_at", "")
+        fecha_orden = hoy
+        if fecha_str:
+            try:
+                fecha_orden = datetime.fromisoformat(
+                    str(fecha_str).replace("Z", "")
+                ).date()
+            except Exception:
+                pass
+
+        # Validar si coincide con la fecha seleccionada (con flexibilidad UTC para hoy)
+        coincide_fecha = (
+            es_fecha_de_hoy(fecha_str)
+            if fecha_seleccionada == hoy
+            else (fecha_orden == fecha_seleccionada)
+        )
+
+        if not coincide_fecha:
             continue
 
         estado = o.get("estado", "Pendiente")
@@ -262,7 +292,6 @@ def monitor_operaciones(request):
 
         vehiculo = vehiculos_dict.get(o.get("vehiculo_id"), {})
         cliente = clientes_dict.get(vehiculo.get("cliente_id"), {})
-
         placa = vehiculo.get("placa", "Sin Placa")
         marca = vehiculo.get("marca", "")
         modelo = vehiculo.get("modelo", "")
@@ -273,20 +302,20 @@ def monitor_operaciones(request):
             "id": o.get("id"),
             "cliente_nombre": cliente.get("nombre_completo", "Cliente General"),
             "vehiculo_info": f"{placa} / {detalle_auto}" if detalle_auto else placa,
-            "servicio_total": (
-                f"Orden de Lavado (${float(o.get('total_pagar', 0)):.2f})"
-            ),
+            "servicio_total": f"Orden de Lavado (${float(o.get('total_pagar', 0)):.2f})",
             "tiempo": tiempo_texto,
             "estado": estado,
         })
 
     contexto = {
-        "ordenes": sorted(
-            ordenes_lista, key=lambda x: x.get("id", 0), reverse=True
-        ),
+        "ordenes": sorted(ordenes_lista, key=lambda x: x.get("id", 0), reverse=True),
         "pendientes": conteo_pendientes,
         "en_proceso": conteo_en_proceso,
         "terminados": conteo_terminados,
+        "fecha_seleccionada": fecha_seleccionada.strftime("%Y-%m-%d"),
+        "fecha_hoy": hoy.strftime("%Y-%m-%d"),
+        "fecha_ayer": ayer.strftime("%Y-%m-%d"),
+        "es_hoy": fecha_seleccionada == hoy,
     }
     return render(request, "monitor.html", contexto)
 
@@ -563,6 +592,13 @@ def registro_orden(request):
 
 @cajero_o_admin
 def modulo_finanzas(request):
+    ordenes_todas = obtener_json("/ordenes/")
+    pagos_todos = obtener_json("/finanzas/pagos")
+    comisiones_todas = obtener_json("/finanzas/comisiones")
+
+    # Identificar qué órdenes ya tienen comisión distribuida para volverlas INMUTABLES
+    ordenes_comisionadas_ids = {c.get("orden_id") for c in comisiones_todas}
+
     if request.method == "POST":
         accion = request.POST.get("accion")
         try:
@@ -585,13 +621,23 @@ def modulo_finanzas(request):
                     messages.error(request, detalle)
 
             elif accion == "asignar_operarios":
+                orden_id_sel = int(request.POST.get("orden_id", 0))
+
+                # CANDADO DE INMUTABILIDAD: Impedir que una comisión ya repartida se vuelva a editar
+                if orden_id_sel in ordenes_comisionadas_ids:
+                    messages.error(
+                        request,
+                        "Operación bloqueada: La comisión de esta orden ya fue distribuida y no puede modificarse.",
+                    )
+                    return redirect("finanzas")
+
                 operarios_raw = request.POST.getlist("operarios_ids")
                 operarios_ids = [int(x) for x in operarios_raw]
                 if operarios_ids:
                     res_asig = requests.post(
                         f"{API_URL}/finanzas/asignar-operarios",
                         json={
-                            "orden_id": int(request.POST.get("orden_id")),
+                            "orden_id": orden_id_sel,
                             "operarios_ids": operarios_ids,
                             "comision_extra_manual": float(
                                 request.POST.get("comision_extra_manual") or 0
@@ -601,36 +647,42 @@ def modulo_finanzas(request):
                     )
                     if res_asig.status_code == 200:
                         messages.success(
-                            request, "Comisión calculada y guardada en planilla.")
+                            request, "Comisión distribuida y cerrada en planilla."
+                        )
         except Exception as e:
             print(f"Error en módulo de finanzas: {e}")
             messages.error(request, "Error de conexión con la API.")
         return redirect("finanzas")
 
-    ordenes = obtener_json("/ordenes/")
     vehiculos = obtener_json("/vehiculos/")
     clientes = obtener_json("/clientes/")
     categorias = obtener_json("/categorias-vehiculos/")
     usuarios = obtener_json("/finanzas/usuarios")
-    pagos = obtener_json("/finanzas/pagos")
-    comisiones = obtener_json("/finanzas/comisiones")
 
     veh_dict = {v["id"]: v for v in vehiculos}
     cli_dict = {c["id"]: c for c in clientes}
     cat_dict = {c["id"]: c for c in categorias}
     usr_dict = {u["id"]: u["nombre_completo"] for u in usuarios}
-    ordenes_pagadas_ids = {p.get("orden_id") for p in pagos}
+    rol_por_usr = {u["id"]: u.get("rol_id") for u in usuarios}
+
+    # Filtrar únicamente las órdenes del día de hoy
+    ordenes_hoy = [o for o in ordenes_todas if es_fecha_de_hoy(
+        o.get("created_at", ""))]
+    ordenes_hoy_ids = {o.get("id") for o in ordenes_hoy}
+
+    ordenes_pagadas_ids = {p.get("orden_id") for p in pagos_todos}
 
     ordenes_info = []
-    for o in ordenes:
+    for o in ordenes_hoy:
+        oid = o.get("id")
         v = veh_dict.get(o.get("vehiculo_id"), {})
         c = cli_dict.get(v.get("cliente_id"), {})
         cat = cat_dict.get(v.get("categoria_vehiculo_id"), {})
         estado_actual = o.get("estado", "Pendiente")
 
         ordenes_info.append({
-            "id": o.get("id"),
-            "id_formateado": f"{o.get('id', 0):08d}",
+            "id": oid,
+            "id_formateado": f"{oid or 0:08d}",
             "vehiculo_info": f"{v.get('placa', 'S/P')} ({v.get('marca', '')} {v.get('modelo', '')})".strip(),
             "cliente_nombre": c.get("nombre_completo", "Cliente General"),
             "categoria_nombre": cat.get("nombre", "Sedán"),
@@ -638,7 +690,8 @@ def modulo_finanzas(request):
             "total_pagar": float(o.get("total_pagar", 0)),
             "estado": estado_actual,
             "cobrable": estado_actual not in ["Pendiente", "En proceso"],
-            "ya_pagada": o.get("id") in ordenes_pagadas_ids,
+            "ya_pagada": oid in ordenes_pagadas_ids,
+            "ya_comisionada": oid in ordenes_comisionadas_ids,
         })
 
     ord_info_dict = {oi["id"]: oi for oi in ordenes_info}
@@ -648,7 +701,9 @@ def modulo_finanzas(request):
     total_efectivo = 0.0
     total_digital = 0.0
 
-    for p in pagos:
+    for p in pagos_todos:
+        if p.get("orden_id") not in ordenes_hoy_ids and not es_fecha_de_hoy(p.get("fecha_pago", "")):
+            continue
         monto = float(p.get("monto", 0))
         metodo = p.get("metodo_pago", "Efectivo")
         total_ingresos += monto
@@ -659,7 +714,6 @@ def modulo_finanzas(request):
 
         oi = ord_info_dict.get(p.get("orden_id"), {})
         fecha_raw = str(p.get("fecha_pago", ""))[:16].replace("T", " ")
-
         pagos_lista.append({
             "id": p.get("id"),
             "orden_formateada": f"{p.get('orden_id', 0):08d}",
@@ -677,11 +731,16 @@ def modulo_finanzas(request):
     conteo_por_op = {}
     total_comisiones = 0.0
 
-    for com in comisiones:
+    for com in comisiones_todas:
+        # Mostrar únicamente las comisiones de las órdenes del día de hoy y de rol Operario (rol_id == 3)
+        if com.get("orden_id") not in ordenes_hoy_ids:
+            continue
         uid = com.get("usuario_id")
+        if rol_por_usr.get(uid) != 3:
+            continue
+
         monto_com = float(com.get("comision_calculada", 0))
         total_comisiones += monto_com
-
         acumulado_por_op[uid] = acumulado_por_op.get(uid, 0.0) + monto_com
         conteo_por_op[uid] = conteo_por_op.get(uid, 0) + 1
 
@@ -693,17 +752,23 @@ def modulo_finanzas(request):
             "comision_calculada": monto_com,
         })
 
+    # En la tabla de planilla solo aparecen los Operarios (rol_id == 3)
     resumen_planilla = []
     for u in usuarios:
         uid = u["id"]
-        if uid in acumulado_por_op or u.get("rol_id") == 3:
+        if u.get("rol_id") == 3:
             resumen_planilla.append({
                 "nombre": u["nombre_completo"],
                 "cantidad_lavados": conteo_por_op.get(uid, 0),
                 "total_comision": acumulado_por_op.get(uid, 0.0),
             })
 
-# Conteo de vehículos lavados segmentados por categoría (Sección 4.7)
+    # Listas separadas por rol para los modales
+    operarios_activos = [u for u in usuarios if u.get(
+        "rol_id") == 3 and u.get("estado") == 1]
+    personal_caja = [u for u in usuarios if u.get(
+        "rol_id") in [1, 2] and u.get("estado") == 1]
+
     conteo_por_categoria = {}
     for oi in ordenes_info:
         if oi["estado"] not in ["Pendiente"]:
@@ -717,7 +782,8 @@ def modulo_finanzas(request):
 
     contexto = {
         "ordenes": ordenes_info,
-        "usuarios": usuarios,
+        "usuarios": personal_caja,
+        "operarios": operarios_activos,
         "pagos": pagos_lista,
         "cantidad_pagos": len(pagos_lista),
         "total_ingresos": total_ingresos,

@@ -51,16 +51,24 @@
     </div>
 </div>
 
-<!-- Tabla de Control -->
+<!-- Barra de Filtros, Selector de Fecha y Tabla de Control -->
 <div class="card card-sprint p-4">
-    <div class="d-flex flex-wrap justify-content-between gap-3 mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <!-- Buscador en Tiempo Real -->
         <div class="input-group input-sprint-container" style="max-width: 380px;">
             <span class="input-group-text"><i class="bi bi-search text-muted"></i></span>
             <input type="text" id="buscadorMonitor" class="form-control" placeholder="Buscar Orden, Placa, Cliente...">
         </div>
+
+        <!-- Selector de Fecha Rápido (Hoy / Ayer / Calendario) -->
+        <form method="GET" class="d-flex align-items-center gap-2">
+            <a href="?fecha={{ fecha_hoy }}" class="btn btn-sm {% if es_hoy %}btn-primary{% else %}btn-outline-secondary{% endif %} rounded-pill px-3">Hoy</a>
+            <a href="?fecha={{ fecha_ayer }}" class="btn btn-sm {% if fecha_seleccionada == fecha_ayer %}btn-primary{% else %}btn-outline-secondary{% endif %} rounded-pill px-3">Ayer</a>
+            <input type="date" name="fecha" value="{{ fecha_seleccionada }}" class="form-control form-control-sm" style="border-radius: 10px; width: 145px;" onchange="this.form.submit()">
+        </form>
+
         <!-- Filtro por Estado -->
-        <select id="filtroEstadoMonitor" class="form-select text-muted" style="max-width: 220px; border-radius: 14px;">
+        <select id="filtroEstadoMonitor" class="form-select text-muted" style="max-width: 200px; border-radius: 14px;">
             <option value="TODOS" selected>Todos los Estados</option>
             <option value="Pendiente">Pendiente</option>
             <option value="En proceso">En Proceso</option>
