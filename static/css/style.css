@@ -1,81 +1,497 @@
-/* Paleta Oficial Sprint Wash - Estilo Móvil Edenilson */
+/* ==========================================================================
+   SPRINT WASH - SISTEMA DE DISEÑO CORPORATIVO (Tabler / Linear / Argon Style)
+   ========================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 :root {
-  --sprint-blue: #1718cc; /* El azul oficial */
-  --sprint-gray: #808080;
-  --bg-light: #f4f5f9; /* Un gris muuuy clarito para el fondo */
+  --sprint-blue: #2563eb;
+  --sprint-blue-hover: #1d4ed8;
+  --sprint-slate: #0f172a;
+  --sprint-slate-light: #1e293b;
+  --sprint-gray: #64748b;
+  --bg-light: #f8fafc;
+  --border-color: #e2e8f0;
+  --sidebar-width: 260px;
+
+  /* Sincronización con variables nativas de Bootstrap 5 */
+  --bs-primary: #2563eb;
+  --bs-primary-rgb: 37, 99, 235;
+  --bs-body-bg: #f8fafc;
+  --bs-body-color: #0f172a;
+  --bs-font-sans-serif: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 body {
   background-color: var(--bg-light);
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: var(--sprint-slate);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* 1. Botón Principal Flotante con Brillo (Glow) */
+/* ==========================================================================
+   1. ARQUITECTURA DE LAYOUT (SIDEBAR IZQUIERDO FIJO 260PX + TOPBAR)
+   ========================================================================== */
+.sidebar-sprint {
+  width: var(--sidebar-width) !important;
+  background-color: #ffffff !important;
+  border-right: 1px solid var(--border-color) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  z-index: 1035;
+}
+
+@media (min-width: 992px) {
+  .sidebar-sprint,
+  .sidebar-sprint.offcanvas-lg {
+    position: fixed !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: var(--sidebar-width) !important;
+    height: 100vh !important;
+    background-color: #ffffff !important;
+    border-right: 1px solid var(--border-color) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    visibility: visible !important;
+    transform: none !important;
+  }
+
+  .main-wrapper {
+    margin-left: var(--sidebar-width) !important;
+    width: calc(100% - var(--sidebar-width));
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .sidebar-sprint.offcanvas-lg {
+    width: var(--sidebar-width) !important;
+    background-color: #ffffff !important;
+  }
+
+  .main-wrapper {
+    margin-left: 0 !important;
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+.sidebar-header {
+  min-height: 96px;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 1rem 0.875rem;
+  overflow-y: auto;
+}
+
+.sidebar-section-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  padding: 0 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Enlaces del Sidebar */
+.nav-sprint-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: 10px !important;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #475569 !important;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all 0.18s ease;
+}
+
+.nav-sprint-link i {
+  font-size: 1.05rem;
+  color: #64748b;
+  transition: color 0.18s ease;
+}
+
+.nav-sprint-link:hover {
+  background-color: #f1f5f9;
+  color: var(--sprint-slate) !important;
+}
+
+.nav-sprint-link:hover i {
+  color: var(--sprint-blue);
+}
+
+.nav-sprint-link.active {
+  background-color: var(--sprint-blue) !important;
+  color: #ffffff !important;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
+}
+
+.nav-sprint-link.active i {
+  color: #ffffff !important;
+}
+
+/* Pie del Sidebar (Perfil y Salida) */
+.sidebar-footer {
+  padding: 0.875rem;
+  border-top: 1px solid var(--border-color);
+  background-color: #fcfcfd;
+}
+
+.user-profile-card {
+  background-color: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.75rem;
+}
+
+.user-avatar-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background-color: rgba(37, 99, 235, 0.1);
+  color: var(--sprint-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.btn-logout-sidebar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  margin-top: 0.65rem;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #dc2626;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: all 0.18s ease;
+}
+
+.btn-logout-sidebar:hover {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+/* Topbar Superior del Contenido Principal */
+.topbar-sprint {
+  height: 68px;
+  background-color: #ffffff;
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 1020;
+}
+
+.topbar-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--sprint-slate);
+  letter-spacing: -0.01em;
+  margin-bottom: 0;
+}
+
+.main-content-area {
+  padding: 1.5rem 1.75rem 2.5rem;
+  flex: 1;
+}
+
+@media (max-width: 575.98px) {
+  .topbar-sprint {
+    padding: 0 1rem;
+  }
+  .main-content-area {
+    padding: 1.25rem 1rem 2rem;
+  }
+}
+
+/* ==========================================================================
+   2. COMPONENTES: BOTONES, TARJETAS, INPUTS Y TABLAS
+   ========================================================================== */
 .btn-primary {
   background-color: var(--sprint-blue) !important;
   border-color: var(--sprint-blue) !important;
-  border-radius: 14px !important; /* Bordes mucho más redondeados */
+  border-radius: 8px !important;
   font-weight: 600;
-  box-shadow: 0 8px 24px rgba(23, 24, 204, 0.35) !important; /* El brillo azul debajo */
-  transition: all 0.3s ease;
+  font-size: 0.875rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06) !important;
+  transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 28px rgba(23, 24, 204, 0.45) !important;
+.btn-primary:hover,
+.btn-primary:focus {
+  background-color: var(--sprint-blue-hover) !important;
+  border-color: var(--sprint-blue-hover) !important;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.18) !important;
 }
 
-/* 2. Tarjetas (Cards) súper suaves */
-.card-sprint {
-  border: none;
-  border-radius: 24px !important; /* Curva pronunciada tipo iOS */
-  box-shadow: 0 12px 36px rgba(0,0,0,0.04); /* Sombra súper sutil */
-  background-color: white;
+.btn-outline-primary {
+  color: var(--sprint-blue) !important;
+  border-color: var(--sprint-blue) !important;
+  border-radius: 8px !important;
+  font-weight: 600;
+  font-size: 0.875rem;
 }
 
-/* 3. Inputs (Cajas de texto) estilo píldora */
-.input-sprint-container {
-  border: 1px solid #e0e0e0;
-  border-radius: 16px; /* Muy redondeado */
-  overflow: hidden;
-  background-color: white;
-}
-.input-sprint-container:focus-within {
-  border-color: var(--sprint-blue);
-  box-shadow: 0 0 0 3px rgba(23, 24, 204, 0.1);
-}
-.input-sprint-container .form-control {
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0.8rem 1rem;
-}
-.input-sprint-container .input-group-text {
-  background-color: white;
-  border: none;
-  padding-left: 1.2rem;
+.btn-outline-primary:hover {
+  background-color: var(--sprint-blue) !important;
+  color: #ffffff !important;
 }
 
-/* Textos */
-.text-sprint { color: var(--sprint-blue) !important; }
-.label-sprint {
-  font-size: 0.85rem;
+.btn-outline-secondary {
+  background-color: #ffffff;
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
+  border-radius: 8px !important;
   font-weight: 500;
-  color: #333;
-  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  transition: all 0.18s ease;
+}
+
+.btn-outline-secondary:hover,
+.btn-outline-secondary:focus {
+  background-color: #f1f5f9 !important;
+  color: var(--sprint-slate) !important;
+  border-color: #94a3b8 !important;
+}
+
+.btn-outline-dark,
+.btn-light {
+  border-radius: 8px !important;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+/* Tarjetas ejecutivas */
+.card-sprint,
+.card {
+  border: 1px solid var(--border-color) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03), 0 1px 2px rgba(15, 23, 42, 0.02) !important;
+  background-color: #ffffff;
+}
+
+/* Contenedor de íconos para KPIs */
+.kpi-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.kpi-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sprint-gray);
+  margin-bottom: 0.25rem;
   display: block;
 }
 
-/* 5. Efectos del Menú de Navegación */
-.nav-sprint-link {
-  transition: all 0.2s ease;
+.kpi-value {
+  font-size: 1.65rem;
+  font-weight: 700;
+  color: var(--sprint-slate);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 0.15rem;
 }
-.nav-sprint-link:hover {
-  background-color: var(--bg-light);
+
+/* Inputs y selectores limpios */
+.input-sprint-container {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #ffffff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input-sprint-container:focus-within {
+  border-color: var(--sprint-blue);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.input-sprint-container .form-control {
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0.58rem 0.85rem;
+  font-size: 0.875rem;
+  color: var(--sprint-slate);
+}
+
+.input-sprint-container .input-group-text {
+  background-color: #ffffff;
+  border: none;
+  padding-left: 0.85rem;
+  padding-right: 0.25rem;
+  color: var(--sprint-gray);
+}
+
+.form-select {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px !important;
+  font-size: 0.875rem;
+  color: var(--sprint-slate);
+  padding: 0.58rem 2rem 0.58rem 0.85rem;
+}
+
+.form-select.form-select-sm {
+  padding: 0.35rem 2rem 0.35rem 0.75rem;
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.form-select:focus {
+  border-color: var(--sprint-blue);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+/* Tipografía auxiliar */
+.text-sprint {
   color: var(--sprint-blue) !important;
 }
 
-/* Estado ACTIVO para el Menú de Navegación */
-.nav-sprint-link.active {
-  background-color: var(--sprint-blue) !important;
-  color: white !important;
+.text-dark {
+  color: var(--sprint-slate) !important;
+}
+
+.text-muted {
+  color: var(--sprint-gray) !important;
+}
+
+.label-sprint {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 0.4rem;
+  display: block;
+}
+
+/* Tablas corporativas */
+.table > thead > tr > th {
+  background-color: #f8fafc;
+  color: var(--sprint-gray);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border-color);
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.table > tbody > tr > td {
+  padding-top: 0.8rem;
+  padding-bottom: 0.8rem;
+  border-bottom-color: #f1f5f9;
+  color: #1e293b;
+}
+
+/* ==========================================================================
+   3. PANEL DE FACTURACIÓN POS (PUNTO DE VENTA)
+   ========================================================================== */
+.panel-facturacion-pos {
+  background-color: var(--sprint-slate) !important;
+  border: 1px solid #1e293b !important;
+  border-radius: 12px !important;
+  color: #f8fafc;
+}
+
+.panel-facturacion-box {
+  background-color: var(--sprint-slate-light);
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+/* Tarjetas de categoría en POS */
+.tarjeta-categoria {
+  border-radius: 10px !important;
+  transition: all 0.15s ease;
+  border-color: var(--border-color) !important;
+}
+
+.tarjeta-categoria:hover {
+  border-color: #94a3b8 !important;
+  background-color: #f8fafc;
+}
+
+/* ==========================================================================
+   4. MODALES Y SWEETALERT2
+   ========================================================================== */
+.modal-content {
+  border: 1px solid var(--border-color) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.12), 0 8px 10px -6px rgba(15, 23, 42, 0.08) !important;
+}
+
+.swal2-popup {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+  border-radius: 14px !important;
+  padding: 1.5rem !important;
+}
+
+.swal2-title {
+  color: var(--sprint-slate) !important;
+  font-size: 1.15rem !important;
+  font-weight: 700 !important;
+}
+
+.swal2-html-container {
+  color: var(--sprint-gray) !important;
+  font-size: 0.92rem !important;
+}
+
+.swal2-confirm,
+.swal2-cancel {
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  font-size: 0.875rem !important;
+  padding: 0.55rem 1.25rem !important;
+  box-shadow: none !important;
+}
+
+/* Desactivar animaciones de giro/rebote en los íconos (?, !, i) de SweetAlert2 */
+.swal2-icon,
+.swal2-icon.swal2-icon-show,
+.swal2-icon .swal2-icon-content,
+.swal2-icon.swal2-icon-show .swal2-icon-content {
+  animation: none !important;
+  transform: none !important;
 }

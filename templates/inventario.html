@@ -5,45 +5,45 @@
 <!-- Tarjetas Superiores de KPIs de Inventario -->
 <div class="row mb-4 g-3">
     <div class="col-md-4">
-        <div class="card card-sprint p-3">
+        <div class="card card-sprint p-3 h-100">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="text-muted fw-bold mb-1">TOTAL INSUMOS</h6>
-                    <h2 class="mb-0 fw-bold text-dark">{{ total_insumos }}</h2>
-                    <small class="text-muted">Productos registrados en catálogo</small>
+                    <span class="kpi-label">Total Insumos</span>
+                    <div class="kpi-value">{{ total_insumos }}</div>
+                    <small class="text-muted">Productos en catálogo</small>
                 </div>
-                <div class="rounded-circle p-3 text-white d-flex align-items-center justify-content-center" style="background-color: var(--sprint-blue); width: 52px; height: 52px;">
-                    <i class="bi bi-box-seam fs-4"></i>
+                <div class="kpi-icon-box bg-primary bg-opacity-10 text-primary">
+                    <i class="bi bi-box-seam"></i>
                 </div>
             </div>
         </div>
     </div>
 
     <div class="col-md-4">
-        <div class="card card-sprint p-3">
+        <div class="card card-sprint p-3 h-100">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="text-muted fw-bold mb-1">VALOR DEL INVENTARIO</h6>
-                    <h2 class="mb-0 fw-bold text-success">${{ valor_inventario|floatformat:2 }}</h2>
+                    <span class="kpi-label">Valor del Inventario</span>
+                    <div class="kpi-value">${{ valor_inventario|floatformat:2 }}</div>
                     <small class="text-muted">Costo acumulado en almacén</small>
                 </div>
-                <div class="bg-success rounded-circle p-3 text-white d-flex align-items-center justify-content-center" style="width: 52px; height: 52px;">
-                    <i class="bi bi-cash-coin fs-4"></i>
+                <div class="kpi-icon-box bg-success bg-opacity-10 text-success">
+                    <i class="bi bi-cash-coin"></i>
                 </div>
             </div>
         </div>
     </div>
 
     <div class="col-md-4">
-        <div class="card card-sprint p-3">
+        <div class="card card-sprint p-3 h-100">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="text-muted fw-bold mb-1">ALERTAS DE STOCK MÍNIMO</h6>
-                    <h2 class="mb-0 fw-bold {% if alertas_criticas > 0 %}text-danger{% else %}text-secondary{% endif %}">{{ alertas_criticas }}</h2>
-                    <small class="text-muted">Insumos por agotarse</small>
+                    <span class="kpi-label">Alertas de Stock Mínimo</span>
+                    <div class="kpi-value {% if alertas_criticas > 0 %}text-danger{% endif %}">{{ alertas_criticas }}</div>
+                    <small class="text-muted">Insumos por reabastecer</small>
                 </div>
-                <div class="{% if alertas_criticas > 0 %}bg-danger{% else %}bg-secondary{% endif %} rounded-circle p-3 text-white d-flex align-items-center justify-content-center" style="width: 52px; height: 52px;">
-                    <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+                <div class="kpi-icon-box {% if alertas_criticas > 0 %}bg-danger bg-opacity-10 text-danger{% else %}bg-secondary bg-opacity-10 text-secondary{% endif %}">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
                 </div>
             </div>
         </div>
@@ -51,125 +51,135 @@
 </div>
 
 <!-- Tabla Principal de Inventario -->
-<div class="card card-sprint p-4">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-        <div class="input-group input-sprint-container" style="max-width: 380px;">
-            <span class="input-group-text"><i class="bi bi-search text-muted"></i></span>
-            <input type="text" id="buscadorInventario" class="form-control" placeholder="Buscar por SKU, producto o proveedor...">
-        </div>
+<div class="card card-sprint">
+    <div class="card-header bg-white py-3 px-4 border-bottom">
+        <div class="row g-3 align-items-center justify-content-between">
+            <div class="col-12 col-md-5">
+                <div class="input-group input-sprint-container">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" id="buscadorInventario" class="form-control" placeholder="Buscar por SKU, producto o proveedor...">
+                </div>
+            </div>
 
-        <div class="d-flex gap-2">
-            {% if not request.session.rol_id or request.session.rol_id == 1 %}
-            <button class="btn btn-outline-primary px-3 py-2" style="border-radius: 12px; font-weight: 600;" data-bs-toggle="modal" data-bs-target="#modalMovimiento">
-                <i class="bi bi-arrow-left-right me-1"></i> Entrada / Salida
-            </button>
-            <button class="btn btn-primary px-3 py-2" style="border-radius: 12px;" data-bs-toggle="modal" data-bs-target="#modalNuevoInsumo">
-                <i class="bi bi-plus-lg me-1"></i> Nuevo Insumo
-            </button>
-            {% else %}
-            <span class="badge bg-light text-muted border px-3 py-2">
-                <i class="bi bi-eye me-1"></i> Modo Solo Lectura
-            </span>
-            {% endif %}
+            <div class="col-12 col-md-auto d-flex flex-wrap gap-2 justify-content-md-end">
+                {% if not request.session.rol_id or request.session.rol_id == 1 %}
+                <button class="btn btn-outline-primary px-3 py-2" data-bs-toggle="modal" data-bs-target="#modalMovimiento">
+                    <i class="bi bi-arrow-left-right me-1"></i>Entrada / Salida
+                </button>
+                <button class="btn btn-primary px-3 py-2" data-bs-toggle="modal" data-bs-target="#modalNuevoInsumo">
+                    <i class="bi bi-plus-lg me-1"></i>Nuevo Insumo
+                </button>
+                {% else %}
+                <span class="badge bg-light text-muted border px-3 py-2">
+                    <i class="bi bi-eye me-1"></i>Modo Solo Lectura
+                </span>
+                {% endif %}
+            </div>
         </div>
     </div>
 
-    <div class="table-responsive">
-        <table class="table table-hover align-middle border-top">
-            <thead class="table-light text-muted" style="font-size: 0.85rem;">
-                <tr>
-                    <th class="ps-3">SKU</th>
-                    <th>Producto</th>
-                    <th>Proveedor</th>
-                    <th class="text-center">Stock Actual</th>
-                    <th class="text-center">Mínimo</th>
-                    <th class="text-end">Costo Unit.</th>
-                    <th class="text-center">Estado</th>
-                    {% if not request.session.rol_id or request.session.rol_id == 1 %}
-                    <th class="text-end pe-3">Acciones</th>
-                    {% endif %}
-                </tr>
-            </thead>
-            <tbody style="font-size: 0.92rem;">
-                {% for item in insumos %}
-                <tr class="fila-insumo {% if item.cantidad_actual <= item.stock_minimo %}table-danger bg-opacity-10{% endif %}">
-                    <td class="ps-3 fw-bold text-sprint">{{ item.codigo_sku }}</td>
-                    <td class="fw-semibold text-dark">{{ item.nombre_producto }}</td>
-                    <td class="text-muted">{{ item.proveedor|default:"General" }}</td>
-                    <td class="text-center fw-bold {% if item.cantidad_actual <= item.stock_minimo %}text-danger{% else %}text-dark{% endif %}">
-                        {{ item.cantidad_actual }} <span class="text-muted fw-normal small">{{ item.unidad_medida }}</span>
-                    </td>
-                    <td class="text-center text-muted">{{ item.stock_minimo }}</td>
-                    <td class="text-end fw-semibold">${{ item.costo_unitario|floatformat:2 }}</td>
-                    <td class="text-center">
-                        {% if item.cantidad_actual <= item.stock_minimo %}
-                            <span class="badge rounded-pill bg-danger px-3 py-1">STOCK BAJO</span>
-                        {% else %}
-                            <span class="badge rounded-pill bg-success bg-opacity-10 text-success border border-success px-3 py-1">ÓPTIMO</span>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th class="ps-4">SKU</th>
+                        <th>Producto</th>
+                        <th>Proveedor</th>
+                        <th class="text-center">Stock Actual</th>
+                        <th class="text-center">Mínimo</th>
+                        <th class="text-end">Costo Unit.</th>
+                        <th class="text-center">Estado</th>
+                        {% if not request.session.rol_id or request.session.rol_id == 1 %}
+                        <th class="text-end pe-4">Acciones</th>
                         {% endif %}
-                    </td>
-                    {% if not request.session.rol_id or request.session.rol_id == 1 %}
-                    <td class="text-end pe-3">
-                        <form method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de eliminar este insumo del inventario?');">
-                            {% csrf_token %}
-                            <input type="hidden" name="accion" value="eliminar_insumo">
-                            <input type="hidden" name="insumo_id" value="{{ item.id }}">
-                            <button type="submit" class="btn btn-sm btn-light text-danger" title="Eliminar">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </form>
-                    </td>
-                    {% endif %}
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="8" class="text-center text-muted py-4">
-                        No hay insumos registrados aún. Usa el botón "Nuevo Insumo" para agregar productos.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                    </tr>
+                </thead>
+                <tbody style="font-size: 0.9rem;">
+                    {% for item in insumos %}
+                    <tr class="fila-insumo {% if item.cantidad_actual <= item.stock_minimo %}table-danger bg-opacity-10{% endif %}">
+                        <td class="ps-4 fw-bold text-sprint">{{ item.codigo_sku }}</td>
+                        <td class="fw-semibold text-dark">{{ item.nombre_producto }}</td>
+                        <td class="text-muted">{{ item.proveedor|default:"General" }}</td>
+                        <td class="text-center fw-bold {% if item.cantidad_actual <= item.stock_minimo %}text-danger{% else %}text-dark{% endif %}">
+                            {{ item.cantidad_actual }} <span class="text-muted fw-normal small">{{ item.unidad_medida }}</span>
+                        </td>
+                        <td class="text-center text-muted">{{ item.stock_minimo }}</td>
+                        <td class="text-end fw-semibold">${{ item.costo_unitario|floatformat:2 }}</td>
+                        <td class="text-center">
+                            {% if item.cantidad_actual <= item.stock_minimo %}
+                                <span class="badge rounded-pill bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-3 py-1">STOCK BAJO</span>
+                            {% else %}
+                                <span class="badge rounded-pill bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-1">ÓPTIMO</span>
+                            {% endif %}
+                        </td>
+                        {% if not request.session.rol_id or request.session.rol_id == 1 %}
+                        <td class="text-end pe-4">
+                            <form method="POST" class="d-inline" onsubmit="return confirmarEliminarInsumo(event, this, '{{ item.nombre_producto|escapejs }}');">
+                                {% csrf_token %}
+                                <input type="hidden" name="accion" value="eliminar_insumo">
+                                <input type="hidden" name="insumo_id" value="{{ item.id }}">
+                                <button type="submit" class="btn btn-sm btn-light border text-danger" title="Eliminar">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-5">
+                            No hay insumos registrados aún. Usa el botón "Nuevo Insumo" para agregar productos.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
 <!-- Tabla Secundaria: Reporte de Insumos Retirados y Utilizados (Sección 4.7) -->
-<div class="card card-sprint p-4 mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h6 class="fw-bold text-dark mb-0">REPORTE DE INSUMOS RETIRADOS Y UTILIZADOS</h6>
-        <span class="badge bg-primary px-3 py-2">Total Unidades Retiradas: {{ total_retirados|default:0 }}</span>
+<div class="card card-sprint mt-4">
+    <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="fw-bold text-dark mb-0">Reporte de Insumos Retirados y Utilizados</h6>
+        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2">
+            Total Unidades Retiradas: {{ total_retirados|default:0 }}
+        </span>
     </div>
-    <div class="table-responsive">
-        <table class="table table-sm align-middle mb-0">
-            <thead class="table-light text-muted" style="font-size: 0.8rem;">
-                <tr>
-                    <th>Fecha</th>
-                    <th>Insumo</th>
-                    <th>Movimiento</th>
-                    <th>Cantidad</th>
-                    <th>Motivo / Operario</th>
-                </tr>
-            </thead>
-            <tbody style="font-size: 0.88rem;">
-                {% for m in movimientos %}
-                <tr>
-                    <td class="text-muted">{{ m.fecha_corta }}</td>
-                    <td class="fw-semibold">{{ m.producto_nombre }}</td>
-                    <td>
-                        <span class="badge {% if m.tipo_movimiento == 'Salida' %}bg-warning text-dark{% else %}bg-success{% endif %}">
-                            {{ m.tipo_movimiento }}
-                        </span>
-                    </td>
-                    <td class="fw-bold">{{ m.cantidad }} {{ m.unidad }}</td>
-                    <td class="text-muted">{{ m.descripcion|default:"Uso en patio" }}</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" class="text-center text-muted py-3">Sin movimientos de inventario registrados.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th class="ps-4">Fecha</th>
+                        <th>Insumo</th>
+                        <th>Movimiento</th>
+                        <th>Cantidad</th>
+                        <th class="pe-4">Motivo / Operario</th>
+                    </tr>
+                </thead>
+                <tbody style="font-size: 0.88rem;">
+                    {% for m in movimientos %}
+                    <tr>
+                        <td class="ps-4 text-muted">{{ m.fecha_corta }}</td>
+                        <td class="fw-semibold text-dark">{{ m.producto_nombre }}</td>
+                        <td>
+                            <span class="badge rounded-pill {% if m.tipo_movimiento == 'Salida' %}bg-warning bg-opacity-10 text-dark border border-warning border-opacity-50{% else %}bg-success bg-opacity-10 text-success border border-success border-opacity-25{% endif %} px-2 py-1">
+                                {{ m.tipo_movimiento }}
+                            </span>
+                        </td>
+                        <td class="fw-bold text-dark">{{ m.cantidad }} {{ m.unidad }}</td>
+                        <td class="pe-4 text-muted">{{ m.descripcion|default:"Uso en patio" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">Sin movimientos de inventario registrados.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
@@ -177,15 +187,15 @@
 <!-- MODAL 1: Crear Nuevo Insumo -->
 <div class="modal fade" id="modalNuevoInsumo" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow" style="border-radius: 20px;">
+        <div class="modal-content">
             <form method="POST">
                 {% csrf_token %}
                 <input type="hidden" name="accion" value="crear_insumo">
-                <div class="modal-header border-0 pb-0">
-                    <h6 class="modal-title fw-bold">REGISTRAR NUEVO INSUMO</h6>
+                <div class="modal-header border-bottom py-3 px-4">
+                    <h6 class="modal-title fw-bold text-dark">Registrar Nuevo Insumo</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body p-4">
                     <div class="row g-3">
                         <div class="col-6">
                             <label class="label-sprint">Código SKU</label>
@@ -195,7 +205,7 @@
                         </div>
                         <div class="col-6">
                             <label class="label-sprint">Unidad de Medida</label>
-                            <select name="unidad_medida" class="form-select" style="border-radius: 14px; padding: 0.75rem;" required>
+                            <select name="unidad_medida" class="form-select" required>
                                 <option value="Galones">Galones</option>
                                 <option value="Litros">Litros</option>
                                 <option value="Unidades">Unidades</option>
@@ -234,8 +244,9 @@
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-0 pt-0">
-                    <button type="submit" class="btn btn-primary w-100 py-2">Guardar Insumo</button>
+                <div class="modal-footer border-top py-3 px-4">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary px-4">Guardar Insumo</button>
                 </div>
             </form>
         </div>
@@ -245,18 +256,18 @@
 <!-- MODAL 2: Registrar Entrada / Salida de Stock -->
 <div class="modal fade" id="modalMovimiento" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow" style="border-radius: 20px;">
-            <form method="POST">
+        <div class="modal-content">
+            <form method="POST" onsubmit="return confirmarMovimientoStock(event, this);">
                 {% csrf_token %}
                 <input type="hidden" name="accion" value="registrar_movimiento">
-                <div class="modal-header border-0 pb-0">
-                    <h6 class="modal-title fw-bold">REGISTRAR ENTRADA O SALIDA DE STOCK</h6>
+                <div class="modal-header border-bottom py-3 px-4">
+                    <h6 class="modal-title fw-bold text-dark">Registrar Entrada o Salida de Stock</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body p-4">
                     <div class="mb-3">
                         <label class="label-sprint">Seleccionar Insumo</label>
-                        <select name="inventario_id" class="form-select" style="border-radius: 14px; padding: 0.75rem;" required>
+                        <select name="inventario_id" class="form-select" required>
                             {% for item in insumos %}
                             <option value="{{ item.id }}">{{ item.codigo_sku }} - {{ item.nombre_producto }} (Actual: {{ item.cantidad_actual }})</option>
                             {% endfor %}
@@ -265,7 +276,7 @@
                     <div class="row g-3 mb-3">
                         <div class="col-6">
                             <label class="label-sprint">Tipo de Movimiento</label>
-                            <select name="tipo_movimiento" class="form-select" style="border-radius: 14px; padding: 0.75rem;" required>
+                            <select name="tipo_movimiento" class="form-select" required>
                                 <option value="Salida">Salida (Consumo en patio)</option>
                                 <option value="Entrada">Entrada (Compra a proveedor)</option>
                             </select>
@@ -277,15 +288,16 @@
                             </div>
                         </div>
                     </div>
-                    <div class="mb-2">
+                    <div class="mb-1">
                         <label class="label-sprint">Motivo / Descripción</label>
                         <div class="input-group input-sprint-container">
                             <input type="text" name="descripcion" class="form-control" placeholder="Ej. Entrega a lavadores turno mañana">
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-0 pt-0">
-                    <button type="submit" class="btn btn-primary w-100 py-2">Aplicar Movimiento</button>
+                <div class="modal-footer border-top py-3 px-4">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary px-4">Aplicar Movimiento</button>
                 </div>
             </form>
         </div>
@@ -300,5 +312,57 @@
             fila.style.display = fila.innerText.toLowerCase().includes(q) ? '' : 'none';
         });
     });
+
+    function confirmarEliminarInsumo(event, form, nombreProducto) {
+        event.preventDefault();
+        Swal.fire({
+            title: '¿Eliminar insumo del inventario?',
+            html: `Se eliminará permanentemente <strong>${nombreProducto}</strong> del catálogo de almacén.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc2626',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                form.submit();
+            }
+        });
+        return false;
+    }
+
+    function confirmarMovimientoStock(event, form) {
+        event.preventDefault();
+        const selectInsumo = form.querySelector('select[name="inventario_id"]');
+        const insumoTexto = selectInsumo && selectInsumo.options[selectInsumo.selectedIndex]
+            ? selectInsumo.options[selectInsumo.selectedIndex].text
+            : 'Insumo seleccionado';
+        const tipo = form.querySelector('select[name="tipo_movimiento"]').value;
+        const cantidad = form.querySelector('input[name="cantidad"]').value;
+
+        Swal.fire({
+            title: `¿Confirmar ${tipo.toLowerCase()} de stock?`,
+            html: `
+                <div class="text-start small bg-light p-3 rounded-3 border mt-2">
+                    <div class="mb-1"><strong>Insumo:</strong> ${insumoTexto}</div>
+                    <div><strong>Movimiento:</strong> ${tipo} de <strong>${cantidad}</strong> unidad(es)</div>
+                </div>
+            `,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#2563eb',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Sí, aplicar movimiento',
+            cancelButtonText: 'Cancelar',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                form.submit();
+            }
+        });
+        return false;
+    }
 </script>
 {% endblock %}

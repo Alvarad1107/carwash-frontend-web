@@ -11,98 +11,146 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     
     <!-- CSS Personalizado -->
-    <link href="{% static 'css/style.css' %}" rel="stylesheet">
+    <link href="{% static 'css/style.css' %}?v=2.4" rel="stylesheet">
 </head>
 <body>
 
-    <!-- Barra de Navegación Superior con Menú -->
-    <nav class="navbar navbar-expand-lg bg-white shadow-sm py-3 mb-4">
-        <div class="container-fluid px-4">
-            
-            <!-- Izquierda: Logo y Título -->
-            <div class="d-flex align-items-center gap-4">
-                <img src="{% static 'img/Sprint Wash Logo.png' %}" alt="Sprint Wash Logo" style="height: 45px;">
-                <h5 class="mb-0 fw-bold text-dark d-none d-xl-block" style="letter-spacing: 0.5px;">
-                    {% block nav_title %}SISTEMA SPRINT WASH{% endblock %}
-                </h5>
-            </div>
+    <!-- SIDEBAR IZQUIERDO FIJO (260px en escritorio / Offcanvas en móvil) -->
+    <aside class="sidebar-sprint offcanvas-lg offcanvas-start" tabindex="-1" id="sidebarMenu" aria-labelledby="sidebarMenuLabel">
+        
+        <!-- Cabecera del Sidebar: Logo Centrado -->
+        <div class="sidebar-header">
+            <a href="{% url 'dashboard' %}" class="text-decoration-none d-flex align-items-center justify-content-center w-100">
+                <img src="{% static 'img/Sprint Wash Logo.png' %}" alt="Sprint Wash Logo" style="height: 66px; max-width: 195px; width: auto; object-fit: contain;">
+            </a>
+            <button type="button" class="btn-close d-lg-none position-absolute end-0 me-3" data-bs-dismiss="offcanvas" data-bs-target="#sidebarMenu" aria-label="Cerrar menú"></button>
+        </div>
 
-            <!-- Botón Hamburguesa -->
-            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#menuPrincipal">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            
-           <!-- Centro: Menú de Navegación filtrado por Rol -->
-            <div class="collapse navbar-collapse justify-content-center" id="menuPrincipal">
-                <ul class="navbar-nav gap-1">
-                    <li class="nav-item">
-                        <a class="nav-link fw-semibold px-3 rounded-pill nav-sprint-link {% if request.path == '/' %}active{% else %}text-dark{% endif %}" href="{% url 'dashboard' %}">
-                            <i class="bi bi-speedometer2 me-2"></i>Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link fw-semibold px-3 rounded-pill nav-sprint-link {% if request.path == '/monitor/' %}active{% else %}text-dark{% endif %}" href="{% url 'monitor' %}">
-                            <i class="bi bi-display me-2"></i>Monitor
-                        </a>
-                    </li>
-                    {% if request.session.rol_id != 3 %}
-                    <li class="nav-item">
-                        <a class="nav-link fw-semibold px-3 rounded-pill nav-sprint-link {% if request.path == '/caja/' %}active{% else %}text-dark{% endif %}" href="{% url 'caja' %}">
-                            <i class="bi bi-shop me-2"></i>Punto de Venta
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link fw-semibold px-3 rounded-pill nav-sprint-link {% if request.path == '/finanzas/' %}active{% else %}text-dark{% endif %}" href="{% url 'finanzas' %}">
-                            <i class="bi bi-cash-coin me-2"></i>Finanzas
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if not request.session.rol_id or request.session.rol_id == 1 %}
-                    <li class="nav-item">
-                        <a class="nav-link fw-semibold px-3 rounded-pill nav-sprint-link {% if request.path == '/catalogos/' %}active{% else %}text-dark{% endif %}" href="{% url 'catalogos' %}">
-                            <i class="bi bi-tags me-2"></i>Catálogos
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link fw-semibold px-3 rounded-pill nav-sprint-link {% if request.path == '/usuarios/' %}active{% else %}text-dark{% endif %}" href="{% url 'usuarios' %}">
-                            <i class="bi bi-people me-2"></i>Usuarios
-                        </a>
-                    </li>
-                    {% endif %}
-                    <li class="nav-item">
-                        <a class="nav-link fw-semibold px-3 rounded-pill nav-sprint-link {% if request.path == '/inventario/' %}active{% else %}text-dark{% endif %}" href="{% url 'inventario' %}">
-                            <i class="bi bi-box-seam me-2"></i>Inventario
-                        </a>
-                    </li>
-                </ul>
-            </div>
-            
-            <!-- Derecha: Perfil y Cerrar sesión -->
-            <div class="d-none d-lg-flex align-items-center gap-3">
-                <div class="text-end">
-                    <span class="d-block text-dark fw-semibold" style="font-size: 0.85rem;">
-                        {{ request.session.usuario_nombre }}
-                    </span>
-                    <span class="d-block text-muted" style="font-size: 0.75rem;">
-                        {{ request.session.rol_nombre }}
-                    </span>
-                </div>
-                <div class="border-start ps-3">
-                    <a href="{% url 'login' %}?logout=1" class="text-sprint text-decoration-none fw-semibold">
-                        <i class="bi bi-box-arrow-right me-1"></i>Cerrar sesión
+        <!-- Cuerpo del Sidebar: Navegación Vertical -->
+        <nav class="sidebar-nav">
+            <div class="sidebar-section-label">Menú Principal</div>
+            <ul class="nav flex-column gap-1">
+                <li class="nav-item">
+                    <a class="nav-link nav-sprint-link {% if request.path == '/' %}active{% endif %}" href="{% url 'dashboard' %}">
+                        <i class="bi bi-grid-1x2"></i>
+                        <span>Dashboard</span>
                     </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link nav-sprint-link {% if request.path == '/monitor/' %}active{% endif %}" href="{% url 'monitor' %}">
+                        <i class="bi bi-display"></i>
+                        <span>Monitor</span>
+                    </a>
+                </li>
+                {% if request.session.rol_id != 3 %}
+                <li class="nav-item">
+                    <a class="nav-link nav-sprint-link {% if request.path == '/caja/' %}active{% endif %}" href="{% url 'caja' %}">
+                        <i class="bi bi-shop"></i>
+                        <span>Punto de Venta</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link nav-sprint-link {% if request.path == '/finanzas/' %}active{% endif %}" href="{% url 'finanzas' %}">
+                        <i class="bi bi-cash-coin"></i>
+                        <span>Finanzas</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% if not request.session.rol_id or request.session.rol_id == 1 %}
+                <li class="nav-item">
+                    <a class="nav-link nav-sprint-link {% if request.path == '/catalogos/' %}active{% endif %}" href="{% url 'catalogos' %}">
+                        <i class="bi bi-tags"></i>
+                        <span>Catálogos</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link nav-sprint-link {% if request.path == '/usuarios/' %}active{% endif %}" href="{% url 'usuarios' %}">
+                        <i class="bi bi-people"></i>
+                        <span>Usuarios</span>
+                    </a>
+                </li>
+                {% endif %}
+                <li class="nav-item">
+                    <a class="nav-link nav-sprint-link {% if request.path == '/inventario/' %}active{% endif %}" href="{% url 'inventario' %}">
+                        <i class="bi bi-box-seam"></i>
+                        <span>Inventario</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Pie del Sidebar: Perfil y Salida -->
+        <div class="sidebar-footer">
+            <div class="user-profile-card">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="user-avatar-badge">
+                        <i class="bi bi-person-check-fill"></i>
+                    </div>
+                    <div class="overflow-hidden">
+                        <span class="d-block text-dark fw-semibold text-truncate" style="font-size: 0.84rem;">
+                            {{ request.session.usuario_nombre|default:"Usuario Activo" }}
+                        </span>
+                        <span class="d-block text-muted text-truncate" style="font-size: 0.72rem; letter-spacing: 0.02em;">
+                            {{ request.session.rol_nombre|default:"ADMINISTRADOR" }}
+                        </span>
+                    </div>
                 </div>
+                <a href="{% url 'login' %}?logout=1" class="btn-logout-sidebar" onclick="return confirmarCerrarSesion(event, this.href);">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Cerrar sesión</span>
+                </a>
             </div>
         </div>
-    </nav>
+    </aside>
 
-    <!-- Contenedor Principal -->
-    <div class="container-fluid mt-4">
-        {% block content %}
-        {% endblock %}
+    <!-- ÁREA PRINCIPAL (TOPBAR + CONTENIDO) -->
+    <div class="main-wrapper">
+        
+        <!-- Cabecera Superior del Contenido Principal (Topbar) -->
+        <header class="topbar-sprint">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-light border d-lg-none px-2 py-1" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu">
+                    <i class="bi bi-list fs-5"></i>
+                </button>
+                <h1 class="topbar-title">
+                    {% block nav_title %}SISTEMA SPRINT WASH{% endblock %}
+                </h1>
+            </div>
+        </header>
+
+        <!-- Contenedor Principal de Trabajo -->
+        <main class="main-content-area">
+            <div class="container-fluid px-0">
+                {% block content %}
+                {% endblock %}
+            </div>
+        </main>
     </div>
 
-    <!-- Bootstrap JS CDN -->
+    <!-- Bootstrap JS y SweetAlert2 CDN -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        function confirmarCerrarSesion(event, url) {
+            event.preventDefault();
+            Swal.fire({
+                title: '¿Cerrar sesión actual?',
+                text: 'Se finalizará tu turno activo en el panel administrativo.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Sí, cerrar sesión',
+                cancelButtonText: 'Cancelar',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = url;
+                }
+            });
+            return false;
+        }
+    </script>
 </body>
 </html>

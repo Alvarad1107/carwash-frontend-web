@@ -11,39 +11,42 @@
     <input type="hidden" name="impuestos" id="inputImpuestos" value="1.04">
     <input type="hidden" name="total_pagar" id="inputTotalPagar" value="9.04">
 
-    <div class="row g-4 mt-2">
+    <div class="row g-4">
         
         <!-- COLUMNA 1: Datos del Cliente -->
         <div class="col-lg-3">
             <div class="card card-sprint p-4 h-100 d-flex flex-column">
-                <h6 class="fw-bold mb-4 text-dark">DATOS DEL CLIENTE</h6>
-                
-                <div class="input-group input-sprint-container mb-4">
-                    <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input type="text" id="buscadorClientesCaja" class="form-control" placeholder="Buscar (Nombre/Teléfono)">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold text-dark mb-0">1. Cliente</h6>
+                    <span class="badge bg-light text-secondary border">{{ clientes|length }} reg.</span>
                 </div>
                 
-                <p class="text-muted small fw-bold mb-3" style="letter-spacing: 0.5px;">CLIENTES REGISTRADOS</p>
+                <div class="input-group input-sprint-container mb-3">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" id="buscadorClientesCaja" class="form-control" placeholder="Buscar cliente">
+                </div>
                 
-                <div class="list-group list-group-flush mb-4 overflow-auto" style="max-height: 280px;">
+                <span class="kpi-label mb-2">Directorio de Clientes</span>
+                
+                <div class="list-group list-group-flush mb-3 overflow-auto flex-grow-1" style="max-height: 310px;">
                     {% for c in clientes %}
                     <button type="button"
-                            class="list-group-item list-group-item-action border-0 rounded-3 px-2 py-2 d-flex align-items-center gap-3 mb-2 item-cliente-caja {% if forloop.first %}bg-primary bg-opacity-10 border-start border-primary border-4{% else %}bg-transparent{% endif %}"
+                            class="list-group-item list-group-item-action border-0 rounded-3 px-2 py-2 d-flex align-items-center gap-2 mb-1 item-cliente-caja {% if forloop.first %}bg-primary bg-opacity-10 border-start border-primary border-4{% else %}bg-transparent{% endif %}"
                             data-id="{{ c.id }}"
                             data-nombre="{{ c.nombre_completo }}">
-                        <i class="bi bi-person-circle fs-3 text-sprint"></i>
+                        <i class="bi bi-person-circle fs-4 text-sprint"></i>
                         <div class="text-start overflow-hidden">
-                            <span class="d-block fw-bold text-dark text-truncate" style="font-size: 0.9rem;">{{ c.nombre_completo }}</span>
-                            <span class="d-block text-muted text-truncate" style="font-size: 0.78rem;">{{ c.telefono|default:c.correo }}</span>
+                            <span class="d-block fw-semibold text-dark text-truncate" style="font-size: 0.86rem;">{{ c.nombre_completo }}</span>
+                            <span class="d-block text-muted text-truncate" style="font-size: 0.75rem;">{{ c.telefono|default:c.correo }}</span>
                         </div>
                     </button>
                     {% empty %}
-                    <p class="text-muted small">No hay clientes registrados.</p>
+                    <p class="text-muted small py-3 text-center mb-0">No hay clientes registrados.</p>
                     {% endfor %}
                 </div>
                 
-                <button type="button" class="btn btn-outline-primary w-100 mt-auto py-2" style="border-radius: 12px; font-weight: 600;" data-bs-toggle="modal" data-bs-target="#modalNuevoCliente">
-                    <i class="bi bi-plus-lg me-2"></i> Nuevo Cliente
+                <button type="button" class="btn btn-outline-primary w-100 mt-auto py-2" data-bs-toggle="modal" data-bs-target="#modalNuevoCliente">
+                    <i class="bi bi-person-plus me-1"></i>Nuevo Cliente
                 </button>
             </div>
         </div>
@@ -51,20 +54,21 @@
         <!-- COLUMNA 2: Datos del Vehículo y Servicios -->
         <div class="col-lg-5">
             <div class="card card-sprint p-4 h-100">
-                <h6 class="fw-bold mb-4 text-dark">VEHÍCULO Y SERVICIOS</h6>
+                <h6 class="fw-bold mb-3 text-dark">2. Vehículo y Servicios</h6>
                 
                 <!-- Selector Visual de Tipo de Auto -->
-                <div class="row g-3 mb-4 text-center">
+                <span class="kpi-label mb-2">Categoría del Vehículo</span>
+                <div class="row g-2 mb-4 text-center">
                     {% for cat in categorias %}
-                    <div class="col-6 col-md-3">
-                        <div class="border rounded-4 p-3 tarjeta-categoria h-100 {% if forloop.first %}border-primary bg-primary bg-opacity-10{% endif %}"
-                             style="cursor:pointer; border-width: 2px !important;"
+                    <div class="col-6 col-md-4">
+                        <div class="border p-2 py-3 tarjeta-categoria h-100 {% if forloop.first %}border-primary bg-primary bg-opacity-10{% endif %}"
+                             style="cursor:pointer;"
                              data-id="{{ cat.id }}"
                              data-nombre="{{ cat.nombre }}"
                              data-precio="{{ cat.precio_base|stringformat:'.2f' }}">
-                            <i class="bi {% if 'Pick' in cat.nombre or 'Grande' in cat.nombre %}bi-truck-front{% elif 'Micro' in cat.nombre %}bi-bus-front{% else %}bi-car-front-fill{% endif %} fs-3 {% if forloop.first %}text-primary{% else %}text-muted{% endif %} mb-2 icono-cat"></i>
-                            <span class="d-block fw-bold text-dark text-truncate" style="font-size: 0.82rem;">{{ cat.nombre }}</span>
-                            <span class="d-block text-muted" style="font-size: 0.75rem;">
+                            <i class="bi {% if 'Pick' in cat.nombre or 'Grande' in cat.nombre %}bi-truck-front{% elif 'Micro' in cat.nombre %}bi-bus-front{% else %}bi-car-front-fill{% endif %} fs-4 {% if forloop.first %}text-primary{% else %}text-muted{% endif %} d-block mb-1 icono-cat"></i>
+                            <span class="d-block fw-bold text-dark text-truncate" style="font-size: 0.8rem;">{{ cat.nombre }}</span>
+                            <span class="d-block text-muted" style="font-size: 0.74rem;">
                                 Base: ${{ cat.precio_base|floatformat:2 }}
                             </span>
                         </div>
@@ -77,13 +81,13 @@
                     <div class="col-md-7 text-start">
                         <label class="label-sprint">Placa del Vehículo</label>
                         <div class="input-group input-sprint-container">
-                            <span class="input-group-text"><i class="bi bi-123 text-muted"></i></span>
+                            <span class="input-group-text"><i class="bi bi-credit-card-2-front"></i></span>
                             <input type="text" name="placa" id="inputPlaca" class="form-control text-uppercase" placeholder="P-123456" required>
                         </div>
                     </div>
                     <div class="col-md-5 text-start">
                         <label class="label-sprint">Bahía Asignada</label>
-                        <select name="bahia_id" class="form-select" style="border-radius: 14px; padding: 0.78rem;" required>
+                        <select name="bahia_id" class="form-select" required>
                             {% for b in bahias %}
                             <option value="{{ b.id }}" {% if b.estado == 'Ocupada' %}disabled{% endif %}>
                                 {{ b.nombre }} ({{ b.estado }})
@@ -108,64 +112,74 @@
                 </div>
 
                 <!-- Selección Rápida de Servicios Adicionales -->
-                <h6 class="fw-bold mb-3 text-dark mt-2">SERVICIOS ADICIONALES</h6>
-                {% for extra in adicionales %}
-                <div class="form-check form-switch mb-2">
-                    <input class="form-check-input switch-extra" type="checkbox" role="switch"
-                           name="extras_ids" value="{{ extra.id }}"
-                           id="extra_{{ extra.id }}"
-                           data-nombre="{{ extra.nombre }}"
-                           data-precio="{{ extra.precio_fijo }}">
-                    <label class="form-check-label ms-2 text-dark" for="extra_{{ extra.id }}">
-                        {{ extra.nombre }} <span class="text-muted small">(+${{ extra.precio_fijo|floatformat:2 }} | Com. +${{ extra.comision_extra|floatformat:2 }})</span>
-                    </label>
+                <span class="kpi-label mb-2">Servicios Adicionales (Extras)</span>
+                <div class="border rounded-3 p-3 bg-light">
+                    {% for extra in adicionales %}
+                    <div class="form-check form-switch {% if not forloop.last %}mb-2{% endif %}">
+                        <input class="form-check-input switch-extra" type="checkbox" role="switch"
+                               name="extras_ids" value="{{ extra.id }}"
+                               id="extra_{{ extra.id }}"
+                               data-nombre="{{ extra.nombre }}"
+                               data-precio="{{ extra.precio_fijo }}">
+                        <label class="form-check-label ms-2 text-dark d-flex justify-content-between" for="extra_{{ extra.id }}" style="font-size: 0.86rem;">
+                            <span class="fw-medium">{{ extra.nombre }}</span>
+                            <span class="text-muted small">+${{ extra.precio_fijo|floatformat:2 }} <span class="text-secondary">(Com. +${{ extra.comision_extra|floatformat:2 }})</span></span>
+                        </label>
+                    </div>
+                    {% empty %}
+                    <span class="text-muted small">Sin servicios adicionales configurados.</span>
+                    {% endfor %}
                 </div>
-                {% endfor %}
             </div>
         </div>
 
-        <!-- COLUMNA 3: Resumen y Cobro -->
+        <!-- COLUMNA 3: Panel de Facturación Sobrio (Tono Slate #0f172a) -->
         <div class="col-lg-4">
-            <div class="card card-sprint p-4 h-100 d-flex flex-column" style="background-color: var(--sprint-blue);">
-                <h6 class="fw-bold mb-4 text-white text-opacity-75">RESUMEN DE ORDEN</h6>
+            <div class="card panel-facturacion-pos p-4 h-100 d-flex flex-column">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="text-uppercase fw-bold small" style="color: #94a3b8; letter-spacing: 0.06em;">3. Resumen de Orden</span>
+                    <span class="badge bg-primary bg-opacity-25 text-white border border-primary border-opacity-50">Pre-Factura</span>
+                </div>
                 
-                <div class="bg-white bg-opacity-10 rounded-4 p-3 mb-4 text-white">
-                    <p class="mb-1 text-white text-opacity-50 small">CLIENTE:</p>
-                    <p class="fw-bold mb-3 fs-5" id="resumenCliente">{{ clientes.0.nombre_completo|default:"Seleccione un cliente" }}</p>
-                    
-                    <p class="mb-1 text-white text-opacity-50 small">VEHÍCULO:</p>
-                    <p class="fw-bold mb-0">
-                        <span id="resumenAutoTexto">Vehículo ({{ categorias.0.nombre|default:"Sedán" }})</span><br>
-                        <span class="fw-normal text-white text-opacity-75" id="resumenPlacaTexto">Placa: ---</span>
-                    </p>
+                <div class="panel-facturacion-box mb-4">
+                    <div class="mb-3 pb-3 border-bottom" style="border-color: #334155 !important;">
+                        <span class="d-block text-uppercase" style="font-size: 0.7rem; color: #94a3b8; letter-spacing: 0.05em;">Cliente</span>
+                        <span class="fw-bold text-white fs-6" id="resumenCliente">{{ clientes.0.nombre_completo|default:"Seleccione un cliente" }}</span>
+                    </div>
+                    <div>
+                        <span class="d-block text-uppercase" style="font-size: 0.7rem; color: #94a3b8; letter-spacing: 0.05em;">Vehículo</span>
+                        <span class="fw-semibold text-white d-block" id="resumenAutoTexto">Vehículo ({{ categorias.0.nombre|default:"Sedán" }})</span>
+                        <span class="small" style="color: #cbd5e1;" id="resumenPlacaTexto">Placa: ---</span>
+                    </div>
                 </div>
 
-                <div class="text-white px-2 mb-4">
+                <div class="px-1 mb-4 flex-grow-1">
+                    <span class="d-block text-uppercase mb-2" style="font-size: 0.7rem; color: #94a3b8; letter-spacing: 0.05em;">Desglose de Servicios</span>
                     <div class="d-flex justify-content-between mb-2 small">
-                        <span class="text-white text-opacity-75" id="resumenServicioBaseNombre">Lavado Básico ({{ categorias.0.nombre|default:"Sedán" }})</span>
-                        <span class="fw-semibold" id="resumenServicioBasePrecio">$8.00</span>
+                        <span style="color: #cbd5e1;" id="resumenServicioBaseNombre">Lavado Básico ({{ categorias.0.nombre|default:"Sedán" }})</span>
+                        <span class="fw-semibold text-white" id="resumenServicioBasePrecio">$8.00</span>
                     </div>
                     
                     <div id="contenedorExtrasResumen"></div>
                     
-                    <hr class="border-white border-opacity-25">
+                    <hr style="border-color: #334155;">
                     
-                    <div class="d-flex justify-content-between mb-1">
-                        <span class="text-white text-opacity-75">Subtotal</span>
-                        <span id="resumenSubtotal">$8.00</span>
+                    <div class="d-flex justify-content-between mb-2 small">
+                        <span style="color: #94a3b8;">Subtotal</span>
+                        <span class="text-white" id="resumenSubtotal">$8.00</span>
                     </div>
-                    <div class="d-flex justify-content-between mb-3">
-                        <span class="text-white text-opacity-75">Impuestos (13%)</span>
-                        <span id="resumenImpuestos">$1.04</span>
+                    <div class="d-flex justify-content-between mb-3 small">
+                        <span style="color: #94a3b8;">Impuestos (13% IVA)</span>
+                        <span class="text-white" id="resumenImpuestos">$1.04</span>
                     </div>
-                    <div class="d-flex justify-content-between align-items-center mt-4">
-                        <span class="fw-bold text-white text-opacity-75 fs-6">TOTAL A PAGAR</span>
+                    <div class="d-flex justify-content-between align-items-center pt-3 border-top" style="border-color: #334155 !important;">
+                        <span class="fw-bold text-uppercase small" style="color: #cbd5e1; letter-spacing: 0.04em;">Total a Pagar</span>
                         <span class="fw-bold text-white fs-2" id="resumenTotal">$9.04</span>
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-light w-100 py-3 mt-auto d-flex justify-content-center align-items-center gap-2" style="border-radius: 14px; font-weight: 700; color: var(--sprint-blue);">
-                    <span>GENERAR ORDEN</span>
+                <button type="submit" class="btn btn-primary w-100 py-3 mt-auto d-flex justify-content-center align-items-center gap-2">
+                    <span>Generar Orden de Lavado</span>
                     <i class="bi bi-arrow-right"></i>
                 </button>
             </div>
@@ -176,15 +190,15 @@
 <!-- MODAL: Nuevo Cliente -->
 <div class="modal fade" id="modalNuevoCliente" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow" style="border-radius: 20px;">
+        <div class="modal-content">
             <form method="POST">
                 {% csrf_token %}
                 <input type="hidden" name="accion" value="crear_cliente">
-                <div class="modal-header border-0 pb-0">
-                    <h6 class="modal-title fw-bold">REGISTRAR NUEVO CLIENTE</h6>
+                <div class="modal-header border-bottom py-3 px-4">
+                    <h6 class="modal-title fw-bold text-dark">Registrar Nuevo Cliente</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body p-4">
                     <div class="mb-3">
                         <label class="label-sprint">Nombre Completo</label>
                         <div class="input-group input-sprint-container">
@@ -197,22 +211,23 @@
                             <input type="text" name="telefono" class="form-control" placeholder="7777-8888">
                         </div>
                     </div>
-                    <div class="mb-2">
-                        <label class="label-sprint">Correo Electrónico (Para Pre-Factura)</label>
+                    <div class="mb-1">
+                        <label class="label-sprint">Correo Electrónico</label>
                         <div class="input-group input-sprint-container">
                             <input type="email" name="correo" class="form-control" placeholder="cliente@correo.com">
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-0 pt-0">
-                    <button type="submit" class="btn btn-primary w-100 py-2">Guardar Cliente</button>
+                <div class="modal-footer border-top py-3 px-4">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary px-4">Guardar Cliente</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- Script para cálculo y actualización del Resumen en Tiempo Real -->
+<!-- Script para cálculo en Tiempo Real y Confirmación SweetAlert2 -->
 <script>
     const primeraTarjeta = document.querySelector('.tarjeta-categoria');
     let categoriaActualNombre = primeraTarjeta ? primeraTarjeta.dataset.nombre : "{{ categorias.0.nombre|default:'Sedán' }}";
@@ -287,8 +302,8 @@
             subtotal += pExtra;
             contenedorExtras.innerHTML += `
                 <div class="d-flex justify-content-between mb-2 small">
-                    <span class="text-white text-opacity-75">${sw.dataset.nombre}</span>
-                    <span class="fw-semibold">$${pExtra.toFixed(2)}</span>
+                    <span style="color: #cbd5e1;">${sw.dataset.nombre}</span>
+                    <span class="fw-semibold text-white">$${pExtra.toFixed(2)}</span>
                 </div>`;
         });
 
@@ -303,6 +318,38 @@
         document.getElementById('inputImpuestos').value = impuestos.toFixed(2);
         document.getElementById('inputTotalPagar').value = total.toFixed(2);
     }
+
+    // 5. Confirmación SweetAlert2 al Generar Orden
+    document.getElementById('formGenerarOrden').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const form = this;
+        const cliente = document.getElementById('resumenCliente').innerText;
+        const vehiculo = document.getElementById('resumenAutoTexto').innerText;
+        const placa = document.getElementById('inputPlaca').value.toUpperCase();
+        const total = document.getElementById('resumenTotal').innerText;
+
+        Swal.fire({
+            title: '¿Generar nueva orden de lavado?',
+            html: `
+                <div class="text-start small bg-light p-3 rounded-3 border mt-2">
+                    <div class="mb-1"><strong>Cliente:</strong> ${cliente}</div>
+                    <div class="mb-1"><strong>Vehículo:</strong> ${vehiculo} (${placa})</div>
+                    <div><strong>Total con impuestos:</strong> <span class="text-primary fw-bold">${total}</span></div>
+                </div>
+            `,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#2563eb',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Sí, generar orden',
+            cancelButtonText: 'Revisar datos',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                form.submit();
+            }
+        });
+    });
 
     // Inicializar montos reales al cargar la página
     actualizarResumen();

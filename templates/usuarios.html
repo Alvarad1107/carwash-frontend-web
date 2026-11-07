@@ -3,104 +3,105 @@
 {% block nav_title %}MÓDULO DE USUARIOS Y ROLES{% endblock %}
 
 {% block content %}
-<div class="row g-4 mt-2 justify-content-center">
-    <div class="col-lg-10">
-        
-        {% if messages %}
-            {% for message in messages %}
-            <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-success{% endif %} alert-dismissible fade show rounded-4 shadow-sm mb-3" role="alert">
-                <i class="bi {% if message.tags == 'error' %}bi-shield-exclamation{% else %}bi-check-circle-fill{% endif %} me-2"></i>
-                <strong>{{ message }}</strong>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            {% endfor %}
-        {% endif %}
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-success{% endif %} alert-dismissible fade show rounded-3 shadow-sm mb-4 border-0" role="alert">
+        <i class="bi {% if message.tags == 'error' %}bi-shield-exclamation{% else %}bi-check-circle-fill{% endif %} me-2"></i>
+        <strong>{{ message }}</strong>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+{% endif %}
 
-        <div class="card card-sprint p-4">
-            <!-- Cabecera del Módulo -->
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h5 class="fw-bold text-dark mb-1">CONTROL DE ACCESO Y PERSONAL</h5>
-                    <p class="text-muted small mb-0">Gestión de cuentas y roles de seguridad conectados a MySQL</p>
+<div class="card card-sprint">
+    <!-- Cabecera y Barra de Herramientas -->
+    <div class="card-header bg-white py-3 px-4 border-bottom">
+        <div class="row g-3 align-items-center justify-content-between">
+            <div class="col-12 col-md-5">
+                <div class="input-group input-sprint-container">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" id="buscadorUsuarios" class="form-control" placeholder="Buscar empleado por nombre o correo...">
                 </div>
-                <button class="btn btn-primary btn-sm px-4 py-2" style="border-radius: 12px; font-weight: 600;" data-bs-toggle="modal" data-bs-target="#modalNuevoEmpleado">
-                    <i class="bi bi-person-plus-fill me-2"></i> Agregar Nuevo Empleado
+            </div>
+            <div class="col-12 col-md-auto text-md-end">
+                <button class="btn btn-primary px-3 py-2" data-bs-toggle="modal" data-bs-target="#modalNuevoEmpleado">
+                    <i class="bi bi-person-plus-fill me-1"></i>Agregar Nuevo Empleado
                 </button>
             </div>
+        </div>
+    </div>
 
-            <!-- Buscador -->
-            <div class="row mb-4">
-                <div class="col-md-5">
-                    <div class="input-group input-sprint-container">
-                        <span class="input-group-text"><i class="bi bi-search text-muted"></i></span>
-                        <input type="text" id="buscadorUsuarios" class="form-control" placeholder="Buscar empleado por nombre o correo...">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tabla de Usuarios -->
-            <div class="table-responsive">
-                <table class="table table-hover align-middle">
-                    <thead class="table-light text-muted" style="font-size: 0.85rem;">
-                        <tr>
-                            <th class="ps-3">ID</th>
-                            <th>Nombre Completo</th>
-                            <th>Correo Electrónico</th>
-                            <th class="text-center">Rol de Sistema</th>
-                            <th class="text-center">Estado</th>
-                            <th class="text-end pe-3">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody style="font-size: 0.95rem;">
-                        {% for u in usuarios %}
-                        <tr class="fila-usuario">
-                            <td class="ps-3 fw-bold text-muted">100{{ u.id }}</td>
-                            <td class="fw-semibold {% if u.estado == 1 %}text-dark{% else %}text-muted{% endif %}">
-                                <div class="d-flex align-items-center gap-2">
-                                    <i class="bi bi-person-circle fs-4 {% if u.rol_id == 1 %}text-primary{% else %}text-muted{% endif %}"></i>
-                                    {{ u.nombre_completo }}
-                                </div>
-                            </td>
-                            <td class="text-muted">{{ u.correo }}</td>
-                            <td class="text-center">
-                                {% if u.rol_id == 1 %}
-                                    <span class="badge rounded-pill px-3 py-1" style="background-color: var(--sprint-blue); color: white; font-weight: 600;">{{ u.rol_nombre }}</span>
-                                {% elif u.rol_id == 2 %}
-                                    <span class="badge rounded-pill border px-3 py-1" style="color: var(--sprint-blue); border-color: var(--sprint-blue) !important; font-weight: 600;">{{ u.rol_nombre }}</span>
-                                {% else %}
-                                    <span class="badge rounded-pill bg-secondary px-3 py-1 text-white" style="font-weight: 600;">{{ u.rol_nombre }}</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-center">
-                                {% if u.estado == 1 %}
-                                    <span class="badge rounded-pill bg-success px-3 py-1 bg-opacity-10 text-success border border-success">ACTIVO</span>
-                                {% else %}
-                                    <span class="badge rounded-pill bg-secondary px-3 py-1 bg-opacity-10 text-secondary border border-secondary">INACTIVO</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-end pe-3">
-                                {% if u.id == request.session.usuario_id %}
-                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary rounded-pill px-3 py-1">
-                                        <i class="bi bi-person-check-fill me-1"></i>En sesión
-                                    </span>
-                                {% else %}
-                                    <form method="POST" class="d-inline">
-                                        {% csrf_token %}
-                                        <input type="hidden" name="accion" value="alternar_estado">
-                                        <input type="hidden" name="usuario_id" value="{{ u.id }}">
-                                        {% if u.estado == 1 %}
-                                            <button type="submit" class="btn btn-sm btn-light text-danger rounded-circle" title="Desactivar"><i class="bi bi-lock-fill"></i></button>
-                                        {% else %}
-                                            <button type="submit" class="btn btn-sm btn-light text-success rounded-circle" title="Activar"><i class="bi bi-unlock-fill"></i></button>
-                                        {% endif %}
-                                    </form>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+    <!-- Tabla de Usuarios -->
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th class="ps-4">ID</th>
+                        <th>Nombre Completo</th>
+                        <th>Correo Electrónico</th>
+                        <th class="text-center">Rol de Sistema</th>
+                        <th class="text-center">Estado</th>
+                        <th class="text-end pe-4">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody style="font-size: 0.9rem;">
+                    {% for u in usuarios %}
+                    <tr class="fila-usuario">
+                        <td class="ps-4 fw-bold text-muted">100{{ u.id }}</td>
+                        <td class="fw-semibold {% if u.estado == 1 %}text-dark{% else %}text-muted{% endif %}">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-person-circle fs-5 {% if u.rol_id == 1 %}text-primary{% else %}text-muted{% endif %}"></i>
+                                <span>{{ u.nombre_completo }}</span>
+                            </div>
+                        </td>
+                        <td class="text-muted">{{ u.correo }}</td>
+                        <td class="text-center">
+                            {% if u.rol_id == 1 %}
+                                <span class="badge rounded-pill bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-1">{{ u.rol_nombre }}</span>
+                            {% elif u.rol_id == 2 %}
+                                <span class="badge rounded-pill bg-info bg-opacity-10 text-dark border px-3 py-1">{{ u.rol_nombre }}</span>
+                            {% else %}
+                                <span class="badge rounded-pill bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-3 py-1">{{ u.rol_nombre }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if u.estado == 1 %}
+                                <span class="badge rounded-pill bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-1">ACTIVO</span>
+                            {% else %}
+                                <span class="badge rounded-pill bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-3 py-1">INACTIVO</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            {% if u.id == request.session.usuario_id %}
+                                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-3 py-1">
+                                    <i class="bi bi-person-check-fill me-1"></i>En sesión
+                                </span>
+                            {% else %}
+                                <form method="POST" class="d-inline" onsubmit="return confirmarEstadoEmpleado(event, this, '{{ u.nombre_completo|escapejs }}', {{ u.estado }});">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="accion" value="alternar_estado">
+                                    <input type="hidden" name="usuario_id" value="{{ u.id }}">
+                                    {% if u.estado == 1 %}
+                                        <button type="submit" class="btn btn-sm btn-light border text-danger" title="Desactivar empleado">
+                                            <i class="bi bi-lock-fill me-1"></i>Desactivar
+                                        </button>
+                                    {% else %}
+                                        <button type="submit" class="btn btn-sm btn-light border text-success" title="Activar empleado">
+                                            <i class="bi bi-unlock-fill me-1"></i>Activar
+                                        </button>
+                                    {% endif %}
+                                </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-5">No hay empleados registrados.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -108,15 +109,15 @@
 <!-- MODAL: Nuevo Empleado -->
 <div class="modal fade" id="modalNuevoEmpleado" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow" style="border-radius: 20px;">
+        <div class="modal-content">
             <form method="POST">
                 {% csrf_token %}
                 <input type="hidden" name="accion" value="crear_usuario">
-                <div class="modal-header border-0 pb-0">
-                    <h6 class="modal-title fw-bold">REGISTRAR NUEVO EMPLEADO</h6>
+                <div class="modal-header border-bottom py-3 px-4">
+                    <h6 class="modal-title fw-bold text-dark">Registrar Nuevo Empleado</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body p-4">
                     <div class="mb-3">
                         <label class="label-sprint">Nombre Completo</label>
                         <div class="input-group input-sprint-container">
@@ -131,21 +132,22 @@
                     </div>
                     <div class="mb-3">
                         <label class="label-sprint">Rol en el Sistema</label>
-                        <select name="rol_id" class="form-select" style="border-radius: 14px; padding: 0.75rem;" required>
+                        <select name="rol_id" class="form-select" required>
                             <option value="1">ENCARGADO GENERAL</option>
                             <option value="2">CAJERO</option>
                             <option value="3" selected>OPERARIO / SUPERVISOR</option>
                         </select>
                     </div>
-                    <div class="mb-2">
+                    <div class="mb-1">
                         <label class="label-sprint">Contraseña Temporal</label>
                         <div class="input-group input-sprint-container">
                             <input type="password" name="password" class="form-control" value="sprintwash123" required>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-0 pt-0">
-                    <button type="submit" class="btn btn-primary w-100 py-2">Guardar Empleado</button>
+                <div class="modal-footer border-top py-3 px-4">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary px-4">Guardar Empleado</button>
                 </div>
             </form>
         </div>
@@ -159,5 +161,28 @@
             f.style.display = f.innerText.toLowerCase().includes(q) ? '' : 'none';
         });
     });
+
+    function confirmarEstadoEmpleado(event, form, nombre, estadoActual) {
+        event.preventDefault();
+        const desactivar = estadoActual === 1;
+        Swal.fire({
+            title: desactivar ? '¿Desactivar empleado?' : '¿Activar empleado?',
+            html: desactivar
+                ? `Se suspenderá el acceso de <strong>${nombre}</strong> al sistema.`
+                : `Se habilitará nuevamente la cuenta de <strong>${nombre}</strong>.`,
+            icon: desactivar ? 'warning' : 'question',
+            showCancelButton: true,
+            confirmButtonColor: desactivar ? '#dc2626' : '#16a34a',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: desactivar ? 'Sí, desactivar' : 'Sí, activar',
+            cancelButtonText: 'Cancelar',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                form.submit();
+            }
+        });
+        return false;
+    }
 </script>
 {% endblock %}

@@ -3,18 +3,29 @@
 {% block nav_title %}MONITOR DE OPERACIONES{% endblock %}
 
 {% block content %}
-<!-- Tarjetas de Resumen -->
-<div class="row mb-4">
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-success{% endif %} alert-dismissible fade show rounded-3 shadow-sm mb-4 border-0" role="alert">
+        <i class="bi {% if message.tags == 'error' %}bi-exclamation-octagon-fill{% else %}bi-check-circle-fill{% endif %} me-2"></i>
+        <strong>{{ message }}</strong>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+{% endif %}
+
+<!-- Tarjetas de Resumen de Patio -->
+<div class="row g-3 mb-4">
     <!-- Tarjeta Pendiente -->
     <div class="col-md-4">
-        <div class="card card-sprint p-3">
+        <div class="card card-sprint p-3 h-100">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="text-muted fw-bold mb-1">PENDIENTE</h6>
-                    <h2 class="mb-0 fw-bold text-secondary">{{ pendientes }}</h2>
+                    <span class="kpi-label">Pendiente</span>
+                    <div class="kpi-value">{{ pendientes }}</div>
+                    <small class="text-muted">En fila de espera</small>
                 </div>
-                <div class="bg-secondary rounded-circle p-3 text-white d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
-                    <i class="bi bi-clock-history fs-4"></i>
+                <div class="kpi-icon-box bg-secondary bg-opacity-10 text-secondary">
+                    <i class="bi bi-clock-history"></i>
                 </div>
             </div>
         </div>
@@ -22,14 +33,15 @@
     
     <!-- Tarjeta En Proceso -->
     <div class="col-md-4">
-        <div class="card card-sprint p-3">
+        <div class="card card-sprint p-3 h-100">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="text-muted fw-bold mb-1">EN PROCESO</h6>
-                    <h2 class="mb-0 fw-bold" style="color: var(--sprint-blue);">{{ en_proceso }}</h2>
+                    <span class="kpi-label">En Proceso</span>
+                    <div class="kpi-value">{{ en_proceso }}</div>
+                    <small class="text-muted">En bahía de lavado</small>
                 </div>
-                <div class="rounded-circle p-3 text-white d-flex align-items-center justify-content-center" style="background-color: var(--sprint-blue); width: 50px; height: 50px;">
-                    <i class="bi bi-car-front-fill fs-4"></i>
+                <div class="kpi-icon-box bg-primary bg-opacity-10 text-primary">
+                    <i class="bi bi-car-front-fill"></i>
                 </div>
             </div>
         </div>
@@ -37,127 +49,137 @@
     
     <!-- Tarjeta Terminado -->
     <div class="col-md-4">
-        <div class="card card-sprint p-3">
+        <div class="card card-sprint p-3 h-100">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="text-muted fw-bold mb-1">TERMINADO</h6>
-                    <h2 class="mb-0 fw-bold text-success">{{ terminados }}</h2>
+                    <span class="kpi-label">Terminado</span>
+                    <div class="kpi-value">{{ terminados }}</div>
+                    <small class="text-muted">Listos para entrega</small>
                 </div>
-                <div class="bg-success rounded-circle p-3 text-white d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
-                    <i class="bi bi-check-circle-fill fs-4"></i>
+                <div class="kpi-icon-box bg-success bg-opacity-10 text-success">
+                    <i class="bi bi-check-circle-fill"></i>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Barra de Filtros, Selector de Fecha y Tabla de Control -->
-<div class="card card-sprint p-4">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-        <!-- Buscador en Tiempo Real -->
-        <div class="input-group input-sprint-container" style="max-width: 380px;">
-            <span class="input-group-text"><i class="bi bi-search text-muted"></i></span>
-            <input type="text" id="buscadorMonitor" class="form-control" placeholder="Buscar Orden, Placa, Cliente...">
+<!-- Barra Unificada de Filtros y Tabla de Control -->
+<div class="card card-sprint">
+    <div class="card-header bg-white p-3 p-md-4 border-bottom">
+        <div class="row g-2 align-items-center justify-content-between">
+            <!-- Buscador en Tiempo Real -->
+            <div class="col-12 col-lg-4">
+                <div class="input-group input-sprint-container">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" id="buscadorMonitor" class="form-control" placeholder="Buscar orden, placa o cliente...">
+                </div>
+            </div>
+
+            <!-- Controles de Fecha y Selector de Estado en una sola barra limpia -->
+            <div class="col-12 col-lg-8 d-flex flex-wrap align-items-center justify-content-lg-end gap-2">
+                <form method="GET" class="d-flex align-items-center gap-2 m-0">
+                    <div class="btn-group" role="group" aria-label="Filtro rápido de fecha">
+                        <a href="?fecha={{ fecha_hoy }}" class="btn btn-sm {% if es_hoy %}btn-primary{% else %}btn-outline-secondary{% endif %} px-3">Hoy</a>
+                        <a href="?fecha={{ fecha_ayer }}" class="btn btn-sm {% if fecha_seleccionada == fecha_ayer %}btn-primary{% else %}btn-outline-secondary{% endif %} px-3">Ayer</a>
+                    </div>
+                    <input type="date" name="fecha" value="{{ fecha_seleccionada }}" class="form-control form-control-sm" style="width: 145px; border-radius: 8px;" onchange="this.form.submit()">
+                </form>
+
+                <select id="filtroEstadoMonitor" class="form-select form-select-sm" style="width: auto; min-width: 185px;">
+                    <option value="TODOS" selected>Todos los Estados</option>
+                    <option value="Pendiente">Pendiente</option>
+                    <option value="En proceso">En Proceso</option>
+                    <option value="Listo para entrega">Terminado / Listo</option>
+                </select>
+            </div>
         </div>
-
-        <!-- Selector de Fecha Rápido (Hoy / Ayer / Calendario) -->
-        <form method="GET" class="d-flex align-items-center gap-2">
-            <a href="?fecha={{ fecha_hoy }}" class="btn btn-sm {% if es_hoy %}btn-primary{% else %}btn-outline-secondary{% endif %} rounded-pill px-3">Hoy</a>
-            <a href="?fecha={{ fecha_ayer }}" class="btn btn-sm {% if fecha_seleccionada == fecha_ayer %}btn-primary{% else %}btn-outline-secondary{% endif %} rounded-pill px-3">Ayer</a>
-            <input type="date" name="fecha" value="{{ fecha_seleccionada }}" class="form-control form-control-sm" style="border-radius: 10px; width: 145px;" onchange="this.form.submit()">
-        </form>
-
-        <!-- Filtro por Estado -->
-        <select id="filtroEstadoMonitor" class="form-select text-muted" style="max-width: 200px; border-radius: 14px;">
-            <option value="TODOS" selected>Todos los Estados</option>
-            <option value="Pendiente">Pendiente</option>
-            <option value="En proceso">En Proceso</option>
-            <option value="Listo para entrega">Terminado / Listo</option>
-        </select>
     </div>
     
-    <div class="table-responsive" style="overflow: visible;">
-        <table class="table table-hover align-middle" id="tablaMonitor">
-            <thead class="table-light text-muted" style="font-size: 0.9rem;">
-                <tr>
-                    <th>Orden ID</th>
-                    <th>Cliente</th>
-                    <th>Vehículo (Placa/Modelo)</th>
-                    <th>Servicio</th>
-                    <th>Tiempo</th>
-                    <th>Estado Actual</th>
-                    <th class="text-end pe-3">Acciones</th>
-                </tr>
-            </thead>
-            <tbody style="font-size: 0.95rem;">
-                {% for orden in ordenes %}
-                <tr class="fila-orden" data-estado="{{ orden.estado }}">
-                    <td><span class="text-sprint fw-bold">#{{ orden.id_formateado }}</span></td>
-                    <td class="fw-semibold text-dark">{{ orden.cliente_nombre }}</td>
-                    <td>{{ orden.vehiculo_info }}</td>
-                    <td>{{ orden.servicio_total }}</td>
-                    <td class="text-muted">{{ orden.tiempo }}</td>
-                    <td>
-                        {% if orden.estado == "En proceso" %}
-                            <span class="badge rounded-pill" style="background-color: var(--sprint-blue); padding: 0.5em 1em;">EN PROCESO</span>
-                        {% elif orden.estado == "Pendiente" %}
-                            <span class="badge rounded-pill bg-secondary" style="padding: 0.5em 1em;">PENDIENTE</span>
-                        {% else %}
-                            <span class="badge rounded-pill bg-success bg-opacity-10 text-success border border-success" style="padding: 0.5em 1em;">TERMINADO</span>
-                        {% endif %}
-                    </td>
-                    <td class="text-end pe-3">
-                        <div class="dropdown">
-                            <button class="btn btn-sm btn-light text-dark border shadow-sm px-2" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" title="Cambiar Estado">
-                                <i class="bi bi-three-dots"></i>
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-4 p-2" style="min-width: 210px;">
-                                <li><h6 class="dropdown-header text-uppercase small fw-bold text-muted">Cambiar estado a:</h6></li>
-                                <li>
-                                    <form method="POST" action="{% url 'cambiar_estado_orden' orden.id %}">
-                                        {% csrf_token %}
-                                        <input type="hidden" name="estado" value="Pendiente">
-                                        <button type="submit" class="dropdown-item rounded-3 py-2 d-flex align-items-center gap-2 {% if orden.estado == 'Pendiente' %}fw-bold text-secondary bg-light{% endif %}">
-                                            <i class="bi bi-clock-history text-secondary"></i> Pendiente
-                                        </button>
-                                    </form>
-                                </li>
-                                <li>
-                                    <form method="POST" action="{% url 'cambiar_estado_orden' orden.id %}">
-                                        {% csrf_token %}
-                                        <input type="hidden" name="estado" value="En proceso">
-                                        <button type="submit" class="dropdown-item rounded-3 py-2 d-flex align-items-center gap-2 {% if orden.estado == 'En proceso' %}fw-bold text-primary bg-light{% endif %}">
-                                            <i class="bi bi-car-front-fill text-primary"></i> En Proceso
-                                        </button>
-                                    </form>
-                                </li>
-                                <li><hr class="dropdown-divider my-1"></li>
-                                <li>
-                                    <form method="POST" action="{% url 'cambiar_estado_orden' orden.id %}">
-                                        {% csrf_token %}
-                                        <input type="hidden" name="estado" value="Listo para entrega">
-                                        <button type="submit" class="dropdown-item rounded-3 py-2 d-flex align-items-center gap-2 {% if orden.estado == 'Listo para entrega' %}fw-bold text-success bg-light{% endif %}">
-                                            <i class="bi bi-check-circle-fill text-success"></i> Terminado (Enviar Correo)
-                                        </button>
-                                    </form>
-                                </li>
-                            </ul>
-                        </div>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="7" class="text-center text-muted py-4">
-                        No hay órdenes registradas en la base de datos o la API está apagada.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="tablaMonitor">
+                <thead>
+                    <tr>
+                        <th class="ps-4">Orden ID</th>
+                        <th>Cliente</th>
+                        <th>Vehículo (Placa/Modelo)</th>
+                        <th>Servicio</th>
+                        <th>Etapa</th>
+                        <th>Estado Actual</th>
+                        <th class="text-end pe-4">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody style="font-size: 0.9rem;">
+                    {% for orden in ordenes %}
+                    <tr class="fila-orden" data-estado="{{ orden.estado }}">
+                        <td class="ps-4"><span class="text-sprint fw-bold">#{{ orden.id_formateado }}</span></td>
+                        <td class="fw-semibold text-dark">{{ orden.cliente_nombre }}</td>
+                        <td>{{ orden.vehiculo_info }}</td>
+                        <td>{{ orden.servicio_total }}</td>
+                        <td class="text-muted">{{ orden.tiempo }}</td>
+                        <td>
+                            {% if orden.estado == "En proceso" %}
+                                <span class="badge rounded-pill bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-1">EN PROCESO</span>
+                            {% elif orden.estado == "Pendiente" %}
+                                <span class="badge rounded-pill bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-3 py-1">PENDIENTE</span>
+                            {% else %}
+                                <span class="badge rounded-pill bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-1">TERMINADO</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-light border px-2 py-1" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" title="Cambiar Estado">
+                                    <i class="bi bi-three-dots"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow-sm border rounded-3 p-2" style="min-width: 220px;">
+                                    <li><h6 class="dropdown-header text-uppercase small fw-bold text-muted px-2 py-1">Cambiar estado a:</h6></li>
+                                    <li>
+                                        <form method="POST" action="{% url 'cambiar_estado_orden' orden.id %}" onsubmit="return confirmarCambioEstado(event, this, '#{{ orden.id_formateado }}');">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="estado" value="Pendiente">
+                                            <button type="submit" class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2 {% if orden.estado == 'Pendiente' %}fw-bold text-secondary bg-light{% endif %}">
+                                                <i class="bi bi-clock-history text-secondary"></i> Pendiente
+                                            </button>
+                                        </form>
+                                    </li>
+                                    <li>
+                                        <form method="POST" action="{% url 'cambiar_estado_orden' orden.id %}" onsubmit="return confirmarCambioEstado(event, this, '#{{ orden.id_formateado }}');">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="estado" value="En proceso">
+                                            <button type="submit" class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2 {% if orden.estado == 'En proceso' %}fw-bold text-primary bg-light{% endif %}">
+                                                <i class="bi bi-car-front-fill text-primary"></i> En Proceso
+                                            </button>
+                                        </form>
+                                    </li>
+                                    <li><hr class="dropdown-divider my-1"></li>
+                                    <li>
+                                        <form method="POST" action="{% url 'cambiar_estado_orden' orden.id %}" onsubmit="return confirmarCambioEstado(event, this, '#{{ orden.id_formateado }}');">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="estado" value="Listo para entrega">
+                                            <button type="submit" class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2 {% if orden.estado == 'Listo para entrega' %}fw-bold text-success bg-light{% endif %}">
+                                                <i class="bi bi-check-circle-fill text-success"></i> Terminado (Enviar Correo)
+                                            </button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-5">
+                            No hay órdenes registradas para la fecha seleccionada o la API no está disponible.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
-<!-- Script para Buscador y Filtro en Tiempo Real -->
+<!-- Script para Buscador, Filtro en Tiempo Real y Confirmación SweetAlert2 -->
 <script>
     const buscador = document.getElementById('buscadorMonitor');
     const filtroEstado = document.getElementById('filtroEstadoMonitor');
@@ -180,5 +202,30 @@
 
     buscador.addEventListener('input', filtrarTabla);
     filtroEstado.addEventListener('change', filtrarTabla);
+
+    function confirmarCambioEstado(event, form, ordenCodigo) {
+        event.preventDefault();
+        const nuevoEstado = form.querySelector('input[name="estado"]').value;
+        const esTerminado = nuevoEstado === 'Listo para entrega';
+
+        Swal.fire({
+            title: esTerminado ? '¿Marcar orden como Terminada?' : `¿Cambiar estado a "${nuevoEstado}"?`,
+            html: esTerminado
+                ? `La orden <strong>${ordenCodigo}</strong> pasará a <strong>Listo para entrega</strong> y se enviará automáticamente el correo electrónico con la pre-factura al cliente.`
+                : `Se actualizará el estado operativo de la orden <strong>${ordenCodigo}</strong> a <strong>${nuevoEstado}</strong>.`,
+            icon: esTerminado ? 'info' : 'question',
+            showCancelButton: true,
+            confirmButtonColor: esTerminado ? '#16a34a' : '#2563eb',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: esTerminado ? 'Sí, terminar y notificar' : 'Sí, actualizar',
+            cancelButtonText: 'Cancelar',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                form.submit();
+            }
+        });
+        return false;
+    }
 </script>
 {% endblock %}
