@@ -129,39 +129,64 @@
                         </td>
                         <td class="text-end pe-4">
                             <div class="dropdown">
-                                <button class="btn btn-sm btn-light border px-2 py-1" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" title="Cambiar Estado">
+                                <button class="btn btn-sm btn-light border px-2 py-1" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" title="Acciones de Orden">
                                     <i class="bi bi-three-dots"></i>
                                 </button>
-                                <ul class="dropdown-menu dropdown-menu-end shadow-sm border rounded-3 p-2" style="min-width: 220px;">
-                                    <li><h6 class="dropdown-header text-uppercase small fw-bold text-muted px-2 py-1">Cambiar estado a:</h6></li>
-                                    <li>
-                                        <form method="POST" action="{% url 'cambiar_estado_orden' orden.id %}" onsubmit="return confirmarCambioEstado(event, this, '#{{ orden.id_formateado }}');">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="estado" value="Pendiente">
-                                            <button type="submit" class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2 {% if orden.estado == 'Pendiente' %}fw-bold text-secondary bg-light{% endif %}">
-                                                <i class="bi bi-clock-history text-secondary"></i> Pendiente
-                                            </button>
-                                        </form>
-                                    </li>
-                                    <li>
-                                        <form method="POST" action="{% url 'cambiar_estado_orden' orden.id %}" onsubmit="return confirmarCambioEstado(event, this, '#{{ orden.id_formateado }}');">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="estado" value="En proceso">
-                                            <button type="submit" class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2 {% if orden.estado == 'En proceso' %}fw-bold text-primary bg-light{% endif %}">
-                                                <i class="bi bi-car-front-fill text-primary"></i> En Proceso
-                                            </button>
-                                        </form>
-                                    </li>
-                                    <li><hr class="dropdown-divider my-1"></li>
-                                    <li>
-                                        <form method="POST" action="{% url 'cambiar_estado_orden' orden.id %}" onsubmit="return confirmarCambioEstado(event, this, '#{{ orden.id_formateado }}');">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="estado" value="Listo para entrega">
-                                            <button type="submit" class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2 {% if orden.estado == 'Listo para entrega' %}fw-bold text-success bg-light{% endif %}">
-                                                <i class="bi bi-check-circle-fill text-success"></i> Terminado (Enviar Correo)
-                                            </button>
-                                        </form>
-                                    </li>
+                                <ul class="dropdown-menu dropdown-menu-end shadow-sm border rounded-3 p-2" style="min-width: 230px;">
+                                    {% if orden.estado == "Pendiente" %}
+                                        <li><h6 class="dropdown-header text-uppercase small fw-bold text-muted px-2 py-1">Cambiar estado a:</h6></li>
+                                        <li>
+                                            <form method="POST" action="{% url 'cambiar_estado_orden' orden.id %}" onsubmit="return confirmarCambioEstado(event, this, '#{{ orden.id_formateado }}');">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="estado" value="En proceso">
+                                                <button type="submit" class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2">
+                                                    <i class="bi bi-car-front-fill text-primary"></i> En Proceso
+                                                </button>
+                                            </form>
+                                        </li>
+                                        <li><hr class="dropdown-divider my-1"></li>
+                                        <li>
+                                            <form method="POST" action="{% url 'cambiar_estado_orden' orden.id %}" onsubmit="return confirmarCambioEstado(event, this, '#{{ orden.id_formateado }}');">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="estado" value="Listo para entrega">
+                                                <button type="submit" class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2">
+                                                    <i class="bi bi-check-circle-fill text-success"></i> Terminado (Enviar Correo)
+                                                </button>
+                                            </form>
+                                        </li>
+                                    {% elif orden.estado == "En proceso" %}
+                                        <li><h6 class="dropdown-header text-uppercase small fw-bold text-muted px-2 py-1">Cambiar estado a:</h6></li>
+                                        <li>
+                                            <form method="POST" action="{% url 'cambiar_estado_orden' orden.id %}" onsubmit="return confirmarCambioEstado(event, this, '#{{ orden.id_formateado }}');">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="estado" value="Listo para entrega">
+                                                <button type="submit" class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2">
+                                                    <i class="bi bi-check-circle-fill text-success"></i> Terminado (Enviar Correo)
+                                                </button>
+                                            </form>
+                                        </li>
+                                    {% else %}
+                                        <li><h6 class="dropdown-header text-uppercase small fw-bold text-muted px-2 py-1">Acción de Caja:</h6></li>
+                                        {% if not orden.ya_pagada %}
+                                        <li>
+                                            <a href="{% url 'finanzas' %}?cobrar_orden={{ orden.id }}" class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2 fw-semibold text-success">
+                                                <i class="bi bi-cash-coin text-success"></i> Cobrar Orden (Ir a Finanzas)
+                                            </a>
+                                        </li>
+                                        {% else %}
+                                        <li>
+                                            <span class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2 text-muted small">
+                                                <i class="bi bi-check2-all text-success"></i> Cobro completado en caja
+                                            </span>
+                                        </li>
+                                        <li><hr class="dropdown-divider my-1"></li>
+                                        <li>
+                                            <a href="{% url 'finanzas' %}" class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2 small text-secondary">
+                                                <i class="bi bi-receipt"></i> Ver en Finanzas
+                                            </a>
+                                        </li>
+                                        {% endif %}
+                                    {% endif %}
                                 </ul>
                             </div>
                         </td>

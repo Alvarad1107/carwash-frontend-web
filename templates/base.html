@@ -11,17 +11,22 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     
     <!-- CSS Personalizado -->
-    <link href="{% static 'css/style.css' %}?v=2.4" rel="stylesheet">
+    <link href="{% static 'css/style.css' %}?v=3.1" rel="stylesheet">
 </head>
 <body>
+    <script>
+        if (localStorage.getItem('sprintwash_sidebar_collapsed') === 'true') {
+            document.body.classList.add('sidebar-collapsed');
+        }
+    </script>
 
-    <!-- SIDEBAR IZQUIERDO FIJO (260px en escritorio / Offcanvas en móvil) -->
+    <!-- SIDEBAR IZQUIERDO RETRÁCTIL (260px <-> 76px en escritorio / Offcanvas en móvil) -->
     <aside class="sidebar-sprint offcanvas-lg offcanvas-start" tabindex="-1" id="sidebarMenu" aria-labelledby="sidebarMenuLabel">
         
         <!-- Cabecera del Sidebar: Logo Centrado -->
         <div class="sidebar-header">
-            <a href="{% url 'dashboard' %}" class="text-decoration-none d-flex align-items-center justify-content-center w-100">
-                <img src="{% static 'img/Sprint Wash Logo.png' %}" alt="Sprint Wash Logo" style="height: 66px; max-width: 195px; width: auto; object-fit: contain;">
+            <a href="{% url 'dashboard' %}" class="text-decoration-none d-flex align-items-center justify-content-center w-100" title="Sprint Wash">
+                <img src="{% static 'img/Sprint Wash Logo.png' %}" alt="Sprint Wash Logo" class="sidebar-logo-img">
             </a>
             <button type="button" class="btn-close d-lg-none position-absolute end-0 me-3" data-bs-dismiss="offcanvas" data-bs-target="#sidebarMenu" aria-label="Cerrar menú"></button>
         </div>
@@ -31,26 +36,47 @@
             <div class="sidebar-section-label">Menú Principal</div>
             <ul class="nav flex-column gap-1">
                 <li class="nav-item">
-                    <a class="nav-link nav-sprint-link {% if request.path == '/' %}active{% endif %}" href="{% url 'dashboard' %}">
+                    <a class="nav-link nav-sprint-link {% if request.path == '/' %}active{% endif %}"
+                       href="{% url 'dashboard' %}"
+                       title="Dashboard"
+                       data-tooltip="Dashboard">
                         <i class="bi bi-grid-1x2"></i>
                         <span>Dashboard</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link nav-sprint-link {% if request.path == '/monitor/' %}active{% endif %}" href="{% url 'monitor' %}">
+                    <a class="nav-link nav-sprint-link {% if request.path == '/monitor/' %}active{% endif %}"
+                       href="{% url 'monitor' %}"
+                       title="Monitor"
+                       data-tooltip="Monitor">
                         <i class="bi bi-display"></i>
                         <span>Monitor</span>
                     </a>
                 </li>
                 {% if request.session.rol_id != 3 %}
                 <li class="nav-item">
-                    <a class="nav-link nav-sprint-link {% if request.path == '/caja/' %}active{% endif %}" href="{% url 'caja' %}">
+                    <a class="nav-link nav-sprint-link {% if request.path == '/caja/' %}active{% endif %}"
+                       href="{% url 'caja' %}"
+                       title="Punto de Venta"
+                       data-tooltip="Punto de Venta">
                         <i class="bi bi-shop"></i>
                         <span>Punto de Venta</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link nav-sprint-link {% if request.path == '/finanzas/' %}active{% endif %}" href="{% url 'finanzas' %}">
+                    <a class="nav-link nav-sprint-link {% if request.path == '/clientes/' %}active{% endif %}"
+                       href="{% url 'clientes' %}"
+                       title="Clientes"
+                       data-tooltip="Clientes">
+                        <i class="bi bi-person-vcard"></i>
+                        <span>Clientes</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link nav-sprint-link {% if request.path == '/finanzas/' %}active{% endif %}"
+                       href="{% url 'finanzas' %}"
+                       title="Finanzas"
+                       data-tooltip="Finanzas">
                         <i class="bi bi-cash-coin"></i>
                         <span>Finanzas</span>
                     </a>
@@ -58,20 +84,29 @@
                 {% endif %}
                 {% if not request.session.rol_id or request.session.rol_id == 1 %}
                 <li class="nav-item">
-                    <a class="nav-link nav-sprint-link {% if request.path == '/catalogos/' %}active{% endif %}" href="{% url 'catalogos' %}">
+                    <a class="nav-link nav-sprint-link {% if request.path == '/catalogos/' %}active{% endif %}"
+                       href="{% url 'catalogos' %}"
+                       title="Catálogos"
+                       data-tooltip="Catálogos">
                         <i class="bi bi-tags"></i>
                         <span>Catálogos</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link nav-sprint-link {% if request.path == '/usuarios/' %}active{% endif %}" href="{% url 'usuarios' %}">
+                    <a class="nav-link nav-sprint-link {% if request.path == '/usuarios/' %}active{% endif %}"
+                       href="{% url 'usuarios' %}"
+                       title="Usuarios"
+                       data-tooltip="Usuarios">
                         <i class="bi bi-people"></i>
                         <span>Usuarios</span>
                     </a>
                 </li>
                 {% endif %}
                 <li class="nav-item">
-                    <a class="nav-link nav-sprint-link {% if request.path == '/inventario/' %}active{% endif %}" href="{% url 'inventario' %}">
+                    <a class="nav-link nav-sprint-link {% if request.path == '/inventario/' %}active{% endif %}"
+                       href="{% url 'inventario' %}"
+                       title="Inventario"
+                       data-tooltip="Inventario">
                         <i class="bi bi-box-seam"></i>
                         <span>Inventario</span>
                     </a>
@@ -82,11 +117,13 @@
         <!-- Pie del Sidebar: Perfil y Salida -->
         <div class="sidebar-footer">
             <div class="user-profile-card">
-                <div class="d-flex align-items-center gap-2">
-                    <div class="user-avatar-badge">
+                <div class="user-profile-row">
+                    <div class="user-avatar-badge"
+                         title="{{ request.session.usuario_nombre|default:'Usuario Activo' }} ({{ request.session.rol_nombre|default:'ADMINISTRADOR' }})"
+                         data-tooltip="{{ request.session.usuario_nombre|default:'Usuario Activo' }}">
                         <i class="bi bi-person-check-fill"></i>
                     </div>
-                    <div class="overflow-hidden">
+                    <div class="user-profile-info">
                         <span class="d-block text-dark fw-semibold text-truncate" style="font-size: 0.84rem;">
                             {{ request.session.usuario_nombre|default:"Usuario Activo" }}
                         </span>
@@ -95,7 +132,11 @@
                         </span>
                     </div>
                 </div>
-                <a href="{% url 'login' %}?logout=1" class="btn-logout-sidebar" onclick="return confirmarCerrarSesion(event, this.href);">
+                <a href="{% url 'login' %}?logout=1"
+                   class="btn-logout-sidebar"
+                   title="Cerrar sesión"
+                   data-tooltip="Cerrar sesión"
+                   onclick="return confirmarCerrarSesion(event, this.href);">
                     <i class="bi bi-box-arrow-right"></i>
                     <span>Cerrar sesión</span>
                 </a>
@@ -109,8 +150,13 @@
         <!-- Cabecera Superior del Contenido Principal (Topbar) -->
         <header class="topbar-sprint">
             <div class="d-flex align-items-center gap-3">
-                <button class="btn btn-light border d-lg-none px-2 py-1" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu">
+                <!-- Botón Móvil (< 992px) -->
+                <button class="btn btn-light border d-lg-none px-2 py-1" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-label="Abrir menú">
                     <i class="bi bi-list fs-5"></i>
+                </button>
+                <!-- Botón Discreto de Escritorio (>= 992px) para contraer/expandir Sidebar a iconos -->
+                <button type="button" id="btnToggleSidebar" class="btn-sidebar-toggle d-none d-lg-inline-flex" title="Contraer / Expandir menú lateral">
+                    <i class="bi bi-chevron-left"></i>
                 </button>
                 <h1 class="topbar-title">
                     {% block nav_title %}SISTEMA SPRINT WASH{% endblock %}
@@ -132,6 +178,34 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
+        // Toggle suave del Sidebar en Escritorio con persistencia en localStorage
+        const btnToggleSidebar = document.getElementById('btnToggleSidebar');
+        if (btnToggleSidebar) {
+            btnToggleSidebar.addEventListener('click', function() {
+                document.body.classList.toggle('sidebar-collapsed');
+                const colapsado = document.body.classList.contains('sidebar-collapsed');
+                localStorage.setItem('sprintwash_sidebar_collapsed', colapsado ? 'true' : 'false');
+            });
+        }
+
+        // Utilidad global: Máscara estricta de teléfono 0000-0000 en tiempo real
+        function formatearTelefonoInput(input) {
+            let digitos = (input.value || '').replace(/\D/g, '').slice(0, 8);
+            if (digitos.length > 4) {
+                input.value = digitos.slice(0, 4) + '-' + digitos.slice(4);
+            } else {
+                input.value = digitos;
+            }
+        }
+
+        document.querySelectorAll('input[name="telefono"], .input-telefono-sv').forEach(inp => {
+            inp.setAttribute('maxlength', '9');
+            inp.setAttribute('pattern', '\\d{4}-\\d{4}');
+            inp.addEventListener('input', function() {
+                formatearTelefonoInput(this);
+            });
+        });
+
         function confirmarCerrarSesion(event, url) {
             event.preventDefault();
             Swal.fire({

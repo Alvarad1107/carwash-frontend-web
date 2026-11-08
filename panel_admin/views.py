@@ -1,74 +1,103 @@
-from django.shortcuts import redirect
+from django.shortcuts import render, redirect
 from functools import wraps
 from django.contrib import messages
-from datetime import datetime, timedelta
-from django.shortcuts import render, redirect
 from datetime import datetime, timedelta, timezone
 import requests
 
 API_URL = "http://127.0.0.1:8000"
 
 
-def login_requerido(view_func):
-    """Evita que entren a cualquier módulo si no han iniciado sesión."""
+def verificar_acceso_y_estado(request):
+    """Verifica que exista sesión y que el usuario no haya sido desactivado en tiempo real."""
+    uid = request.session.get("usuario_id")
+    if not uid:
+        messages.error(
+            request, "Necesitas iniciar sesión para acceder al sistema.")
+        return False
 
+    usuarios = obtener_json("/finanzas/usuarios")
+    if usuarios:
+        usuario_actual = next(
+            (u for u in usuarios if u.get("id") == uid), None)
+        if usuario_actual and usuario_actual.get("estado") == 0:
+            request.session.flush()
+            messages.error(
+                request,
+                "Tu sesión ha sido cerrada porque tu cuenta fue desactivada por un Administrador.",
+            )
+            return False
+    return True
+
+
+def login_requerido(view_func):
+    """Evita que entren a cualquier módulo por URL si no han iniciado sesión o si fueron desactivados."""
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        if not request.session.get("usuario_id"):
-            messages.error(request, "Por favor inicie sesión para continuar.")
+        if not verificar_acceso_y_estado(request):
             return redirect("login")
         return view_func(request, *args, **kwargs)
-
     return wrapper
 
 
 def solo_administrador(view_func):
     """Restringe el acceso exclusivamente al rol Administrador (Encargado General)."""
-
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        if not request.session.get("usuario_id"):
+        if not verificar_acceso_y_estado(request):
             return redirect("login")
         if request.session.get("rol_id") != 1:
             messages.error(
-                request, "Acceso denegado. Se requieren privilegios de Administrador."
+                request, "Acceso denegado: Se requieren privilegios de Administrador."
             )
-            return redirect("monitor")
+            return redirect("dashboard")
         return view_func(request, *args, **kwargs)
-
     return wrapper
 
 
 def cajero_o_admin(view_func):
-    """Permite acceso a Administradores y Cajeros (bloquea a Operarios/Supervisores en áreas financieras)."""
-
+    """Permite acceso a Administradores y Cajeros."""
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        if not request.session.get("usuario_id"):
+        if not verificar_acceso_y_estado(request):
             return redirect("login")
-        if request.session.get("rol_id") == 3:  # Operario / Supervisor
+        if request.session.get("rol_id") == 3:
             messages.error(
                 request,
-                "Acceso restringido. Esta área es exclusiva para Caja y Administración.",
+                "Acceso restringido: Esta área es exclusiva para Caja y Administración.",
             )
             return redirect("monitor")
         return view_func(request, *args, **kwargs)
-
     return wrapper
 
 
+# Zona horaria oficial de El Salvador (UTC-6 fijo todo el año)
+TZ_SV = timezone(timedelta(hours=-6))
+
+
+def ahora_sv():
+    """Devuelve la fecha y hora actual exacta en El Salvador (UTC-6)."""
+    return datetime.now(TZ_SV)
+
+
+def fecha_iso_a_sv(fecha_str):
+    """Convierte cualquier fecha UTC proveniente de la API a hora local de El Salvador (UTC-6)."""
+    if not fecha_str:
+        return ahora_sv()
+    try:
+        limpia = str(fecha_str).replace("Z", "")
+        dt = datetime.fromisoformat(limpia)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(TZ_SV)
+    except Exception:
+        return ahora_sv()
+
+
 def es_fecha_de_hoy(fecha_str):
-    """Verifica si una fecha ISO pertenece al día de hoy (considerando hora local y UTC)."""
-    hoy_local = datetime.now().date()
-    hoy_utc = datetime.now(timezone.utc).date()
+    """Verifica si una fecha ISO pertenece al día de hoy en hora de El Salvador."""
     if not fecha_str:
         return True
-    try:
-        fecha_orden = datetime.fromisoformat(
-            str(fecha_str).replace("Z", "")).date()
-        return fecha_orden in (hoy_local, hoy_utc)
-    except Exception:
-        return True
+    return fecha_iso_a_sv(fecha_str).date() == ahora_sv().date()
 
 
 def obtener_json(endpoint):
@@ -85,7 +114,7 @@ def obtener_json(endpoint):
 @cajero_o_admin
 def dashboard_prueba(request):
     obtener_json("/finanzas/usuarios")
-    hoy = datetime.now().date()
+    hoy = ahora_sv().date()
     inicio_semana = hoy - timedelta(days=hoy.weekday())
 
     ordenes = obtener_json("/ordenes/")
@@ -103,17 +132,8 @@ def dashboard_prueba(request):
         estado = str(o.get("estado", "")).lower()
         total = float(o.get("total_pagar", 0) or 0)
         fecha_str = o.get("created_at", "")
-
-        fecha_orden = hoy
-        if fecha_str:
-            try:
-                fecha_orden = datetime.fromisoformat(
-                    str(fecha_str).replace("Z", "")
-                ).date()
-            except Exception:
-                pass
-
-        de_hoy = es_fecha_de_hoy(fecha_str)
+        fecha_orden = fecha_iso_a_sv(fecha_str).date()
+        de_hoy = (fecha_orden == hoy)
 
         # Solo procesamos en el panel operativo las órdenes del día de hoy
         if de_hoy:
@@ -230,7 +250,7 @@ def login_prueba(request):
 
 @login_requerido
 def monitor_operaciones(request):
-    hoy = datetime.now().date()
+    hoy = ahora_sv().date()
     ayer = hoy - timedelta(days=1)
 
     # Leer la fecha seleccionada en el filtro o usar HOY por defecto
@@ -252,31 +272,19 @@ def monitor_operaciones(request):
     ordenes = obtener_json("/ordenes/")
     vehiculos = obtener_json("/vehiculos/")
     clientes = obtener_json("/clientes/")
+    pagos = obtener_json("/finanzas/pagos")
 
     vehiculos_dict = {v["id"]: v for v in vehiculos}
     clientes_dict = {c["id"]: c for c in clientes}
+    ordenes_pagadas_ids = {p.get("orden_id") for p in pagos}
 
     for o in ordenes:
-        fecha_str = o.get("created_at", "")
-        fecha_orden = hoy
-        if fecha_str:
-            try:
-                fecha_orden = datetime.fromisoformat(
-                    str(fecha_str).replace("Z", "")
-                ).date()
-            except Exception:
-                pass
-
-        # Validar si coincide con la fecha seleccionada (con flexibilidad UTC para hoy)
-        coincide_fecha = (
-            es_fecha_de_hoy(fecha_str)
-            if fecha_seleccionada == hoy
-            else (fecha_orden == fecha_seleccionada)
-        )
-
-        if not coincide_fecha:
+        fecha_orden = fecha_iso_a_sv(o.get("created_at", "")).date()
+        if fecha_orden != fecha_seleccionada:
             continue
 
+        oid = o.get("id")
+        ya_pagada = oid in ordenes_pagadas_ids
         estado = o.get("estado", "Pendiente")
         if estado == "Pendiente":
             conteo_pendientes += 1
@@ -284,9 +292,9 @@ def monitor_operaciones(request):
         elif estado == "En proceso":
             conteo_en_proceso += 1
             tiempo_texto = "En bahía de lavado"
-        elif estado in ["Listo para entrega", "Terminado"]:
+        elif estado in ["Listo para entrega", "Terminado", "Pagado", "Entregado"]:
             conteo_terminados += 1
-            tiempo_texto = "Listo para retiro"
+            tiempo_texto = "Cobrado / Entregado" if ya_pagada else "Listo para retiro"
         else:
             tiempo_texto = "En patio"
 
@@ -298,13 +306,14 @@ def monitor_operaciones(request):
         detalle_auto = f"{marca} {modelo}".strip()
 
         ordenes_lista.append({
-            "id_formateado": f"{o.get('id', 0):08d}",
-            "id": o.get("id"),
+            "id_formateado": f"{oid or 0:08d}",
+            "id": oid,
             "cliente_nombre": cliente.get("nombre_completo", "Cliente General"),
             "vehiculo_info": f"{placa} / {detalle_auto}" if detalle_auto else placa,
             "servicio_total": f"Orden de Lavado (${float(o.get('total_pagar', 0)):.2f})",
             "tiempo": tiempo_texto,
             "estado": estado,
+            "ya_pagada": ya_pagada,
         })
 
     contexto = {
@@ -326,6 +335,27 @@ def cambiar_estado_orden(request, orden_id):
         nuevo_estado = request.POST.get("estado")
         if nuevo_estado:
             try:
+                ordenes = obtener_json("/ordenes/")
+                orden_actual = next(
+                    (o for o in ordenes if o.get("id") == int(orden_id)), None
+                )
+                estado_actual = (orden_actual or {}).get("estado", "Pendiente")
+
+                # Regla de flujo unidireccional: Pendiente -> En proceso -> Listo para entrega
+                if estado_actual in ["Listo para entrega", "Terminado", "Pagado", "Entregado"]:
+                    messages.error(
+                        request,
+                        f"Operación bloqueada: La orden #{int(orden_id):08d} ya fue marcada como Terminada y no puede regresar a un estado anterior.",
+                    )
+                    return redirect("monitor")
+
+                if estado_actual == "En proceso" and nuevo_estado == "Pendiente":
+                    messages.error(
+                        request,
+                        f"Operación bloqueada: La orden #{int(orden_id):08d} ya está En Proceso y no puede regresar a Pendiente.",
+                    )
+                    return redirect("monitor")
+
                 requests.patch(
                     f"{API_URL}/ordenes/{orden_id}/estado",
                     json={"estado": nuevo_estado},
@@ -454,15 +484,45 @@ def registro_orden(request):
         try:
             # 1. Acción para crear un cliente nuevo desde Caja
             if accion == "crear_cliente":
-                requests.post(
+                res = requests.post(
                     f"{API_URL}/clientes/",
                     json={
-                        "nombre_completo": request.POST.get("nombre_completo"),
-                        "telefono": request.POST.get("telefono") or None,
-                        "correo": request.POST.get("correo") or None,
+                        "nombre_completo": (request.POST.get("nombre_completo") or "").strip(),
+                        "telefono": (request.POST.get("telefono") or "").strip() or None,
+                        "correo": (request.POST.get("correo") or "").strip().lower() or None,
                     },
                     timeout=5,
                 )
+                if res.status_code == 200:
+                    messages.success(request, "Cliente registrado correctamente.")
+                else:
+                    try:
+                        detalle = res.json().get("detail", "No se pudo registrar el cliente.")
+                    except Exception:
+                        detalle = "No se pudo registrar el cliente."
+                    messages.error(request, detalle)
+                return redirect("caja")
+
+            # 1.B Acción para editar un cliente existente desde Caja
+            elif accion == "editar_cliente":
+                cliente_id = int(request.POST.get("cliente_id", 0))
+                res = requests.patch(
+                    f"{API_URL}/clientes/{cliente_id}",
+                    json={
+                        "nombre_completo": (request.POST.get("nombre_completo") or "").strip(),
+                        "telefono": (request.POST.get("telefono") or "").strip() or None,
+                        "correo": (request.POST.get("correo") or "").strip().lower() or None,
+                    },
+                    timeout=5,
+                )
+                if res.status_code == 200:
+                    messages.success(request, "Datos del cliente actualizados correctamente.")
+                else:
+                    try:
+                        detalle = res.json().get("detail", "No se pudo actualizar el cliente.")
+                    except Exception:
+                        detalle = "No se pudo actualizar el cliente."
+                    messages.error(request, detalle)
                 return redirect("caja")
 
             # 2. Acción para generar la orden completa y mandarla al Monitor
@@ -482,13 +542,34 @@ def registro_orden(request):
 
                 # Verificar si la placa ya existe en MySQL o crear el vehículo
                 vehiculos_existentes = obtener_json("/vehiculos/")
-                vehiculo_id = None
+                vehiculo_existente = None
                 for v in vehiculos_existentes:
-                    if v.get("placa", "").upper() == placa:
-                        vehiculo_id = v.get("id")
+                    if v.get("placa", "").strip().upper() == placa:
+                        vehiculo_existente = v
                         break
 
-                if not vehiculo_id:
+                vehiculo_id = None
+                if vehiculo_existente:
+                    vehiculo_id = vehiculo_existente.get("id")
+                    # Si el vehículo ya existe y se modificaron marca, modelo, categoría o cliente, sincronizar vía PATCH
+                    if (
+                        (vehiculo_existente.get("marca") or "") != marca
+                        or (vehiculo_existente.get("modelo") or "") != modelo
+                        or int(vehiculo_existente.get("categoria_vehiculo_id") or 0) != categoria_id
+                        or int(vehiculo_existente.get("cliente_id") or 0) != cliente_id
+                    ):
+                        requests.patch(
+                            f"{API_URL}/vehiculos/{vehiculo_id}",
+                            json={
+                                "cliente_id": cliente_id,
+                                "categoria_vehiculo_id": categoria_id,
+                                "placa": placa,
+                                "marca": marca,
+                                "modelo": modelo,
+                            },
+                            timeout=5,
+                        )
+                else:
                     res_veh = requests.post(
                         f"{API_URL}/vehiculos/",
                         json={
@@ -503,6 +584,13 @@ def registro_orden(request):
                     )
                     if res_veh.status_code == 200:
                         vehiculo_id = res_veh.json().get("id")
+                    else:
+                        try:
+                            detalle = res_veh.json().get("detail", "No se pudo registrar el vehículo.")
+                        except Exception:
+                            detalle = "No se pudo registrar el vehículo."
+                        messages.error(request, detalle)
+                        return redirect("caja")
 
                 # Crear la orden en estado Pendiente, registrar detalles y actualizar montos
                 if vehiculo_id:
@@ -540,9 +628,17 @@ def registro_orden(request):
                             },
                             timeout=5,
                         )
+                    else:
+                        try:
+                            detalle = res_ord.json().get("detail", "No se pudo generar la orden.")
+                        except Exception:
+                            detalle = "No se pudo generar la orden."
+                        messages.error(request, detalle)
+                        return redirect("caja")
                 return redirect("monitor")
         except Exception as e:
             print(f"Error procesando orden en caja: {e}")
+            messages.error(request, "Error de conexión al procesar la solicitud.")
             return redirect("caja")
 
     # Inicializar catálogos base si la BD recién se creó
@@ -550,6 +646,7 @@ def registro_orden(request):
 
     # Peticiones GET para alimentar la pantalla de Punto de Venta
     clientes = obtener_json("/clientes/")
+    vehiculos = obtener_json("/vehiculos/")
     categorias = obtener_json("/categorias-vehiculos/")
     adicionales = obtener_json("/servicios/adicionales")
     matriz = obtener_json("/servicios/matriz-precios")
@@ -583,11 +680,85 @@ def registro_orden(request):
 
     contexto = {
         "clientes": clientes,
+        "vehiculos": vehiculos,
         "categorias": categorias[:5],
         "adicionales": adicionales,
         "bahias": bahias,
     }
     return render(request, "registro_orden.html", contexto)
+
+
+@cajero_o_admin
+def modulo_clientes(request):
+    if request.method == "POST":
+        accion = request.POST.get("accion")
+        try:
+            if accion == "crear_cliente":
+                res = requests.post(
+                    f"{API_URL}/clientes/",
+                    json={
+                        "nombre_completo": (request.POST.get("nombre_completo") or "").strip(),
+                        "telefono": (request.POST.get("telefono") or "").strip() or None,
+                        "correo": (request.POST.get("correo") or "").strip().lower() or None,
+                    },
+                    timeout=5,
+                )
+                if res.status_code == 200:
+                    messages.success(request, "Cliente registrado correctamente.")
+                else:
+                    try:
+                        detalle = res.json().get("detail", "No se pudo registrar el cliente.")
+                    except Exception:
+                        detalle = "No se pudo registrar el cliente."
+                    messages.error(request, detalle)
+
+            elif accion == "editar_cliente":
+                cliente_id = int(request.POST.get("cliente_id", 0))
+                res = requests.patch(
+                    f"{API_URL}/clientes/{cliente_id}",
+                    json={
+                        "nombre_completo": (request.POST.get("nombre_completo") or "").strip(),
+                        "telefono": (request.POST.get("telefono") or "").strip() or None,
+                        "correo": (request.POST.get("correo") or "").strip().lower() or None,
+                    },
+                    timeout=5,
+                )
+                if res.status_code == 200:
+                    messages.success(request, "Datos del cliente actualizados correctamente.")
+                else:
+                    try:
+                        detalle = res.json().get("detail", "No se pudo actualizar el cliente.")
+                    except Exception:
+                        detalle = "No se pudo actualizar el cliente."
+                    messages.error(request, detalle)
+        except Exception as e:
+            print(f"Error en módulo de clientes: {e}")
+            messages.error(request, "Error de conexión con la API.")
+        return redirect("clientes")
+
+    clientes = obtener_json("/clientes/")
+    vehiculos = obtener_json("/vehiculos/")
+    categorias = obtener_json("/categorias-vehiculos/")
+    cat_dict = {c.get("id"): c.get("nombre") for c in categorias}
+
+    vehiculos_por_cliente = {}
+    for v in vehiculos:
+        cid = v.get("cliente_id")
+        v["categoria_nombre"] = cat_dict.get(v.get("categoria_vehiculo_id"), "Vehículo")
+        vehiculos_por_cliente.setdefault(cid, []).append(v)
+
+    for c in clientes:
+        c["vehiculos_registrados"] = vehiculos_por_cliente.get(c.get("id"), [])
+
+    return render(
+        request,
+        "clientes.html",
+        {
+            "clientes": clientes,
+            "vehiculos": vehiculos,
+            "categorias": categorias,
+        },
+    )
 
 
 @cajero_o_admin
@@ -713,7 +884,8 @@ def modulo_finanzas(request):
             total_digital += monto
 
         oi = ord_info_dict.get(p.get("orden_id"), {})
-        fecha_raw = str(p.get("fecha_pago", ""))[:16].replace("T", " ")
+        fecha_raw = fecha_iso_a_sv(
+            p.get("fecha_pago", "")).strftime("%Y-%m-%d %H:%M")
         pagos_lista.append({
             "id": p.get("id"),
             "orden_formateada": f"{p.get('orden_id', 0):08d}",
@@ -780,8 +952,13 @@ def modulo_finanzas(request):
         {"categoria": k, "cantidad": v} for k, v in conteo_por_categoria.items()
     ]
 
+    comisiones_sin_distribuir = sum(
+        1 for oi in ordenes_info if not oi["ya_comisionada"]
+    )
+
     contexto = {
         "ordenes": ordenes_info,
+        "comisiones_sin_distribuir": comisiones_sin_distribuir,
         "usuarios": personal_caja,
         "operarios": operarios_activos,
         "pagos": pagos_lista,
@@ -810,8 +987,8 @@ def modulo_usuarios(request):
                     f"{API_URL}/finanzas/usuarios",
                     json={
                         "rol_id": int(request.POST.get("rol_id", 3)),
-                        "nombre_completo": request.POST.get("nombre_completo"),
-                        "correo": request.POST.get("correo"),
+                        "nombre_completo": (request.POST.get("nombre_completo") or "").strip(),
+                        "correo": (request.POST.get("correo") or "").strip().lower(),
                         "password": request.POST.get("password", "sprintwash123"),
                     },
                     timeout=5,
@@ -820,8 +997,49 @@ def modulo_usuarios(request):
                     messages.success(
                         request, "Empleado registrado correctamente.")
                 else:
-                    messages.error(request, res.json().get(
-                        "detail", "No se pudo crear el usuario."))
+                    try:
+                        detalle = res.json().get("detail", "No se pudo crear el usuario.")
+                    except Exception:
+                        detalle = "No se pudo crear el usuario."
+                    messages.error(request, detalle)
+
+            elif accion == "editar_usuario":
+                uid = int(request.POST.get("usuario_id", 0))
+                rol_id = int(request.POST.get("rol_id", 3))
+                nombre_completo = (request.POST.get("nombre_completo") or "").strip()
+                correo = (request.POST.get("correo") or "").strip().lower()
+                password_nueva = (request.POST.get("password") or "").strip()
+
+                if uid == 1 and rol_id != 1:
+                    messages.error(
+                        request,
+                        "Operación bloqueada: El Administrador Principal debe mantener el rol de Encargado General.",
+                    )
+                    return redirect("usuarios")
+
+                payload = {
+                    "rol_id": rol_id,
+                    "nombre_completo": nombre_completo,
+                    "correo": correo,
+                }
+                if password_nueva:
+                    payload["password"] = password_nueva
+
+                res = requests.patch(
+                    f"{API_URL}/finanzas/usuarios/{uid}",
+                    json=payload,
+                    timeout=5,
+                )
+                if res.status_code == 200:
+                    if uid == request.session.get("usuario_id"):
+                        request.session["usuario_nombre"] = nombre_completo
+                    messages.success(request, "Datos del empleado actualizados correctamente.")
+                else:
+                    try:
+                        detalle = res.json().get("detail", "No se pudo actualizar el usuario.")
+                    except Exception:
+                        detalle = "No se pudo actualizar el usuario."
+                    messages.error(request, detalle)
 
             elif accion == "alternar_estado":
                 uid = int(request.POST.get("usuario_id", 0))
@@ -833,6 +1051,12 @@ def modulo_usuarios(request):
                 if uid == mi_id:
                     messages.error(
                         request, "Operación bloqueada: No puedes desactivar tu propia cuenta en sesión activa.")
+                    return redirect("usuarios")
+
+                # 1.B Proteger la cuenta del Administrador Principal (ID 1)
+                if uid == 1:
+                    messages.error(
+                        request, "Operación bloqueada: La cuenta del Administrador Principal no puede ser desactivada.")
                     return redirect("usuarios")
 
                 if usuario_objetivo and usuario_objetivo.get("estado") == 1:
@@ -933,7 +1157,8 @@ def modulo_inventario(request):
             m.get("inventario_id"), "Insumo")
         m["unidad"] = unidades_dict.get(m.get("inventario_id"), "Unidades")
         m["fecha_corta"] = (
-            str(m.get("fecha_movimiento", ""))[:16].replace("T", " ")
+            fecha_iso_a_sv(m.get("fecha_movimiento", "")
+                           ).strftime("%Y-%m-%d %H:%M")
         )
 
     total_insumos = len(insumos)

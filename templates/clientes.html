@@ -1,0 +1,293 @@
+{% extends 'base.html' %}
+
+{% block nav_title %}DIRECTORIO DE CLIENTES Y VEHÍCULOS{% endblock %}
+
+{% block content %}
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-success{% endif %} alert-dismissible fade show rounded-3 shadow-sm mb-4 border-0" role="alert">
+        <i class="bi {% if message.tags == 'error' %}bi-exclamation-octagon-fill{% else %}bi-check-circle-fill{% endif %} me-2"></i>
+        <strong>{{ message }}</strong>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+{% endif %}
+
+<div class="card card-sprint">
+    <div class="card-header bg-white py-3 px-4 border-bottom">
+        <div class="row g-3 align-items-center justify-content-between">
+            <div class="col-12 col-md-5">
+                <div class="input-group input-sprint-container">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" id="buscadorDirectorioClientes" class="form-control" placeholder="Buscar por nombre, teléfono, correo o placa...">
+                </div>
+            </div>
+            <div class="col-12 col-md-auto text-md-end">
+                <button class="btn btn-primary px-3 py-2" data-bs-toggle="modal" data-bs-target="#modalNuevoCliente">
+                    <i class="bi bi-person-plus-fill me-1"></i>Nuevo Cliente
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th class="ps-4">ID</th>
+                        <th>Nombre Completo</th>
+                        <th>Teléfono</th>
+                        <th>Correo Electrónico</th>
+                        <th>Vehículos Asociados</th>
+                        <th class="text-end pe-4">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody style="font-size: 0.9rem;">
+                    {% for c in clientes %}
+                    <tr class="fila-cliente-dir">
+                        <td class="ps-4 fw-bold text-muted">#{{ c.id }}</td>
+                        <td class="fw-semibold text-dark">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-person-circle fs-5 text-primary"></i>
+                                <span>{{ c.nombre_completo }}</span>
+                            </div>
+                        </td>
+                        <td class="fw-medium">{{ c.telefono|default:"---" }}</td>
+                        <td class="text-muted">{{ c.correo|default:"---" }}</td>
+                        <td>
+                            <div class="d-flex flex-wrap gap-1">
+                                {% for v in c.vehiculos_registrados %}
+                                <span class="badge bg-light text-dark border px-2 py-1 fw-medium">
+                                    <strong class="text-sprint">{{ v.placa }}</strong> · {{ v.marca }} {{ v.modelo }}
+                                </span>
+                                {% empty %}
+                                <span class="text-muted small">Sin vehículos</span>
+                                {% endfor %}
+                            </div>
+                        </td>
+                        <td class="text-end pe-4">
+                            <button type="button"
+                                    class="btn btn-sm btn-light border text-dark btn-editar-cliente"
+                                    title="Editar datos del cliente"
+                                    data-id="{{ c.id }}"
+                                    data-nombre="{{ c.nombre_completo }}"
+                                    data-telefono="{{ c.telefono|default:'' }}"
+                                    data-correo="{{ c.correo|default:'' }}">
+                                <i class="bi bi-pencil-square text-primary me-1"></i>Editar
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-5">No hay clientes registrados en el sistema.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 1: Nuevo Cliente -->
+<div class="modal fade" id="modalNuevoCliente" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" id="formCrearClienteDir" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="crear_cliente">
+                <div class="modal-header border-bottom py-3 px-4">
+                    <h6 class="modal-title fw-bold text-dark">Registrar Nuevo Cliente</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="label-sprint">Nombre Completo</label>
+                        <div class="input-group input-sprint-container">
+                            <input type="text" name="nombre_completo" id="dirNuevoNombre" class="form-control" placeholder="Ej. Carlos Mendoza" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="label-sprint">Teléfono (Formato 0000-0000)</label>
+                        <div class="input-group input-sprint-container" id="boxDirNuevoTel">
+                            <span class="input-group-text"><i class="bi bi-telephone"></i></span>
+                            <input type="text" name="telefono" id="dirNuevoTel" class="form-control input-telefono-sv" placeholder="7777-8888" maxlength="9" pattern="\d{4}-\d{4}" inputmode="numeric" required>
+                        </div>
+                        <small id="errDirNuevoTel" class="text-danger fw-medium d-none mt-1 d-block"></small>
+                    </div>
+                    <div class="mb-1">
+                        <label class="label-sprint">Correo Electrónico</label>
+                        <div class="input-group input-sprint-container" id="boxDirNuevoCorreo">
+                            <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                            <input type="email" name="correo" id="dirNuevoCorreo" class="form-control" placeholder="cliente@correo.com">
+                        </div>
+                        <small id="errDirNuevoCorreo" class="text-danger fw-medium d-none mt-1 d-block"></small>
+                    </div>
+                </div>
+                <div class="modal-footer border-top py-3 px-4">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" id="btnGuardarDirNuevo" class="btn btn-primary px-4">Guardar Cliente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 2: Editar Cliente (PATCH /clientes/{id}) -->
+<div class="modal fade" id="modalEditarCliente" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" id="formEditarClienteDir" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="editar_cliente">
+                <input type="hidden" name="cliente_id" id="dirEditId">
+                <div class="modal-header border-bottom py-3 px-4">
+                    <h6 class="modal-title fw-bold text-dark">Editar Datos del Cliente</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="label-sprint">Nombre Completo</label>
+                        <div class="input-group input-sprint-container">
+                            <input type="text" name="nombre_completo" id="dirEditNombre" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="label-sprint">Teléfono (Formato 0000-0000)</label>
+                        <div class="input-group input-sprint-container" id="boxDirEditTel">
+                            <span class="input-group-text"><i class="bi bi-telephone"></i></span>
+                            <input type="text" name="telefono" id="dirEditTel" class="form-control input-telefono-sv" placeholder="7777-8888" maxlength="9" pattern="\d{4}-\d{4}" inputmode="numeric" required>
+                        </div>
+                        <small id="errDirEditTel" class="text-danger fw-medium d-none mt-1 d-block"></small>
+                    </div>
+                    <div class="mb-1">
+                        <label class="label-sprint">Correo Electrónico</label>
+                        <div class="input-group input-sprint-container" id="boxDirEditCorreo">
+                            <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                            <input type="email" name="correo" id="dirEditCorreo" class="form-control" placeholder="cliente@correo.com">
+                        </div>
+                        <small id="errDirEditCorreo" class="text-danger fw-medium d-none mt-1 d-block"></small>
+                    </div>
+                </div>
+                <div class="modal-footer border-top py-3 px-4">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" id="btnGuardarDirEdit" class="btn btn-primary px-4">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    const CLIENTES_DIR = [
+        {% for c in clientes %}
+        {
+            id: {{ c.id }},
+            telefono: "{{ c.telefono|default:''|escapejs }}",
+            correo: "{{ c.correo|default:''|lower|escapejs }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    document.getElementById('buscadorDirectorioClientes').addEventListener('input', function() {
+        const q = this.value.toLowerCase();
+        document.querySelectorAll('.fila-cliente-dir').forEach(f => {
+            f.style.display = f.innerText.toLowerCase().includes(q) ? '' : 'none';
+        });
+    });
+
+    document.querySelectorAll('.btn-editar-cliente').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.getElementById('dirEditId').value = this.dataset.id;
+            document.getElementById('dirEditNombre').value = this.dataset.nombre;
+            document.getElementById('dirEditTel').value = this.dataset.telefono || '';
+            document.getElementById('dirEditCorreo').value = this.dataset.correo || '';
+            validarClienteDir('edit');
+            const modal = new bootstrap.Modal(document.getElementById('modalEditarCliente'));
+            modal.show();
+        });
+    });
+
+    function validarClienteDir(modo) {
+        const esNuevo = modo === 'nuevo';
+        const idExcluir = esNuevo ? null : parseInt(document.getElementById('dirEditId').value || '0');
+        const telInput = document.getElementById(esNuevo ? 'dirNuevoTel' : 'dirEditTel');
+        const correoInput = document.getElementById(esNuevo ? 'dirNuevoCorreo' : 'dirEditCorreo');
+        const boxTel = document.getElementById(esNuevo ? 'boxDirNuevoTel' : 'boxDirEditTel');
+        const boxCorreo = document.getElementById(esNuevo ? 'boxDirNuevoCorreo' : 'boxDirEditCorreo');
+        const errTel = document.getElementById(esNuevo ? 'errDirNuevoTel' : 'errDirEditTel');
+        const errCorreo = document.getElementById(esNuevo ? 'errDirNuevoCorreo' : 'errDirEditCorreo');
+        const btnGuardar = document.getElementById(esNuevo ? 'btnGuardarDirNuevo' : 'btnGuardarDirEdit');
+
+        formatearTelefonoInput(telInput);
+        const telVal = telInput.value.trim();
+        const correoVal = correoInput.value.trim().toLowerCase();
+
+        let telInvalido = false;
+        let correoInvalido = false;
+
+        if (telVal.length > 0 && !/^\d{4}-\d{4}$/.test(telVal)) {
+            telInvalido = true;
+            boxTel.classList.add('input-invalid');
+            errTel.innerText = 'El teléfono debe tener exactamente 8 dígitos en formato 0000-0000.';
+            errTel.classList.remove('d-none');
+        } else if (telVal.length === 9 && CLIENTES_DIR.some(c => c.id !== idExcluir && c.telefono === telVal)) {
+            telInvalido = true;
+            boxTel.classList.add('input-invalid');
+            errTel.innerText = 'Este número de teléfono ya pertenece a un cliente registrado';
+            errTel.classList.remove('d-none');
+        } else {
+            boxTel.classList.remove('input-invalid');
+            errTel.classList.add('d-none');
+        }
+
+        if (correoVal.length > 0 && CLIENTES_DIR.some(c => c.id !== idExcluir && c.correo && c.correo === correoVal)) {
+            correoInvalido = true;
+            boxCorreo.classList.add('input-invalid');
+            errCorreo.innerText = 'Este correo electrónico ya está registrado';
+            errCorreo.classList.remove('d-none');
+        } else {
+            boxCorreo.classList.remove('input-invalid');
+            errCorreo.classList.add('d-none');
+        }
+
+        btnGuardar.disabled = (telInvalido || correoInvalido);
+        return !(telInvalido || correoInvalido) && /^\d{4}-\d{4}$/.test(telVal);
+    }
+
+    ['dirNuevoTel', 'dirNuevoCorreo'].forEach(id => {
+        document.getElementById(id).addEventListener('input', () => validarClienteDir('nuevo'));
+    });
+    ['dirEditTel', 'dirEditCorreo'].forEach(id => {
+        document.getElementById(id).addEventListener('input', () => validarClienteDir('edit'));
+    });
+
+    document.getElementById('formCrearClienteDir').addEventListener('submit', function(e) {
+        const nombre = document.getElementById('dirNuevoNombre').value.trim();
+        const tel = document.getElementById('dirNuevoTel').value.trim();
+        if (!nombre || !/^\d{4}-\d{4}$/.test(tel) || !validarClienteDir('nuevo')) {
+            e.preventDefault();
+            if (!/^\d{4}-\d{4}$/.test(tel)) {
+                document.getElementById('boxDirNuevoTel').classList.add('input-invalid');
+                const errTel = document.getElementById('errDirNuevoTel');
+                errTel.innerText = 'Ingrese un número válido de 8 dígitos en formato 0000-0000.';
+                errTel.classList.remove('d-none');
+            }
+        }
+    });
+
+    document.getElementById('formEditarClienteDir').addEventListener('submit', function(e) {
+        const nombre = document.getElementById('dirEditNombre').value.trim();
+        const tel = document.getElementById('dirEditTel').value.trim();
+        if (!nombre || !/^\d{4}-\d{4}$/.test(tel) || !validarClienteDir('edit')) {
+            e.preventDefault();
+            if (!/^\d{4}-\d{4}$/.test(tel)) {
+                document.getElementById('boxDirEditTel').classList.add('input-invalid');
+                const errTel = document.getElementById('errDirEditTel');
+                errTel.innerText = 'Ingrese un número válido de 8 dígitos en formato 0000-0000.';
+                errTel.classList.remove('d-none');
+            }
+        }
+    });
+</script>
+{% endblock %}

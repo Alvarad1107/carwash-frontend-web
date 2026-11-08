@@ -12,6 +12,8 @@
   --bg-light: #f8fafc;
   --border-color: #e2e8f0;
   --sidebar-width: 260px;
+  --sidebar-collapsed-width: 76px;
+  --sidebar-ease: cubic-bezier(0.4, 0, 0.2, 1);
 
   /* Sincronización con variables nativas de Bootstrap 5 */
   --bs-primary: #2563eb;
@@ -27,10 +29,11 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 /* ==========================================================================
-   1. ARQUITECTURA DE LAYOUT (SIDEBAR IZQUIERDO FIJO 260PX + TOPBAR)
+   1. ARQUITECTURA DE LAYOUT (SIDEBAR RETRÁCTIL 260PX <-> 76PX + TOPBAR)
    ========================================================================== */
 .sidebar-sprint {
   width: var(--sidebar-width) !important;
@@ -39,6 +42,7 @@ body {
   display: flex !important;
   flex-direction: column !important;
   z-index: 1035;
+  transition: width 0.28s var(--sidebar-ease);
 }
 
 @media (min-width: 992px) {
@@ -56,6 +60,7 @@ body {
     flex-direction: column !important;
     visibility: visible !important;
     transform: none !important;
+    transition: width 0.28s var(--sidebar-ease);
   }
 
   .main-wrapper {
@@ -64,6 +69,18 @@ body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    transition: margin-left 0.28s var(--sidebar-ease), width 0.28s var(--sidebar-ease);
+  }
+
+  /* Estado Colapsado (76px) en Escritorio */
+  body.sidebar-collapsed .sidebar-sprint,
+  body.sidebar-collapsed .sidebar-sprint.offcanvas-lg {
+    width: var(--sidebar-collapsed-width) !important;
+  }
+
+  body.sidebar-collapsed .main-wrapper {
+    margin-left: var(--sidebar-collapsed-width) !important;
+    width: calc(100% - var(--sidebar-collapsed-width));
   }
 }
 
@@ -82,20 +99,45 @@ body {
   }
 }
 
+/* Cabecera del Sidebar y Logo */
 .sidebar-header {
-  min-height: 96px;
-  padding: 1rem 1.25rem;
+  min-height: 92px;
+  padding: 0.85rem 1rem;
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
+  transition: min-height 0.28s var(--sidebar-ease), padding 0.28s var(--sidebar-ease);
 }
 
+.sidebar-logo-img {
+  height: 64px;
+  max-width: 190px;
+  width: auto;
+  object-fit: contain;
+  transition: height 0.28s var(--sidebar-ease), max-width 0.28s var(--sidebar-ease), transform 0.28s var(--sidebar-ease);
+}
+
+@media (min-width: 992px) {
+  body.sidebar-collapsed .sidebar-header {
+    min-height: 68px;
+    padding: 0.5rem 0.4rem;
+  }
+
+  body.sidebar-collapsed .sidebar-logo-img {
+    height: 36px;
+    max-width: 56px;
+  }
+}
+
+/* Cuerpo de Navegación */
 .sidebar-nav {
   flex: 1;
   padding: 1rem 0.875rem;
   overflow-y: auto;
+  overflow-x: hidden;
+  transition: padding 0.28s var(--sidebar-ease);
 }
 
 .sidebar-section-label {
@@ -106,10 +148,13 @@ body {
   color: #94a3b8;
   padding: 0 0.75rem;
   margin-bottom: 0.5rem;
+  white-space: nowrap;
+  transition: opacity 0.22s var(--sidebar-ease), height 0.28s var(--sidebar-ease), margin 0.28s var(--sidebar-ease);
 }
 
 /* Enlaces del Sidebar */
 .nav-sprint-link {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -120,13 +165,25 @@ body {
   color: #475569 !important;
   text-decoration: none;
   white-space: nowrap;
-  transition: all 0.18s ease;
+  transition: background-color 0.2s ease, color 0.2s ease, padding 0.28s var(--sidebar-ease), gap 0.28s var(--sidebar-ease);
 }
 
 .nav-sprint-link i {
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   color: #64748b;
-  transition: color 0.18s ease;
+  flex-shrink: 0;
+  width: 22px;
+  text-align: center;
+  transition: color 0.18s ease, transform 0.28s var(--sidebar-ease);
+}
+
+.nav-sprint-link span {
+  display: inline-block;
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 0.2s var(--sidebar-ease), transform 0.28s var(--sidebar-ease), max-width 0.28s var(--sidebar-ease);
+  max-width: 180px;
+  overflow: hidden;
 }
 
 .nav-sprint-link:hover {
@@ -149,11 +206,73 @@ body {
   color: #ffffff !important;
 }
 
+/* Comportamiento y Tooltips en Modo Colapsado (76px) */
+@media (min-width: 992px) {
+  body.sidebar-collapsed .sidebar-nav {
+    padding: 0.85rem 0.65rem;
+    overflow: visible;
+  }
+
+  body.sidebar-collapsed .sidebar-section-label {
+    opacity: 0;
+    height: 0;
+    margin-bottom: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  body.sidebar-collapsed .nav-sprint-link {
+    justify-content: center;
+    padding: 0.65rem 0;
+    gap: 0;
+  }
+
+  body.sidebar-collapsed .nav-sprint-link span {
+    opacity: 0;
+    max-width: 0;
+    transform: translateX(-8px);
+    pointer-events: none;
+  }
+
+  /* Tooltip flotante elegante al hacer :hover en modo colapsado */
+  body.sidebar-collapsed [data-tooltip] {
+    position: relative;
+  }
+
+  body.sidebar-collapsed [data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: calc(100% + 14px);
+    top: 50%;
+    transform: translateY(-50%) translateX(-6px);
+    background-color: var(--sprint-slate);
+    color: #ffffff;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.38rem 0.7rem;
+    border-radius: 6px;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.18s var(--sidebar-ease), transform 0.18s var(--sidebar-ease), visibility 0.18s;
+    z-index: 1090;
+  }
+
+  body.sidebar-collapsed [data-tooltip]:hover::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(-50%) translateX(0);
+  }
+}
+
 /* Pie del Sidebar (Perfil y Salida) */
 .sidebar-footer {
   padding: 0.875rem;
   border-top: 1px solid var(--border-color);
   background-color: #fcfcfd;
+  transition: padding 0.28s var(--sidebar-ease);
 }
 
 .user-profile-card {
@@ -161,6 +280,22 @@ body {
   border: 1px solid var(--border-color);
   border-radius: 10px;
   padding: 0.75rem;
+  transition: padding 0.28s var(--sidebar-ease), background-color 0.28s var(--sidebar-ease);
+}
+
+.user-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  transition: gap 0.28s var(--sidebar-ease);
+}
+
+.user-profile-info {
+  overflow: hidden;
+  opacity: 1;
+  max-width: 160px;
+  transition: opacity 0.2s var(--sidebar-ease), max-width 0.28s var(--sidebar-ease), transform 0.28s var(--sidebar-ease);
 }
 
 .user-avatar-badge {
@@ -175,6 +310,7 @@ body {
   font-weight: 600;
   font-size: 1rem;
   flex-shrink: 0;
+  margin: 0;
 }
 
 .btn-logout-sidebar {
@@ -183,7 +319,7 @@ body {
   justify-content: center;
   gap: 0.5rem;
   width: 100%;
-  margin-top: 0.65rem;
+  margin-top: 0.6rem;
   padding: 0.45rem 0.75rem;
   font-size: 0.8rem;
   font-weight: 600;
@@ -192,12 +328,94 @@ body {
   border: 1px solid #fecaca;
   border-radius: 8px;
   text-decoration: none;
-  transition: all 0.18s ease;
+  white-space: nowrap;
+  transition: all 0.22s var(--sidebar-ease);
+}
+
+.btn-logout-sidebar span {
+  opacity: 1;
+  max-width: 120px;
+  overflow: hidden;
+  transition: opacity 0.2s var(--sidebar-ease), max-width 0.28s var(--sidebar-ease);
 }
 
 .btn-logout-sidebar:hover {
   background-color: #fee2e2;
   color: #b91c1c;
+}
+
+@media (min-width: 992px) {
+  body.sidebar-collapsed .sidebar-footer {
+    padding: 0.65rem 0.5rem;
+  }
+
+  body.sidebar-collapsed .user-profile-card {
+    padding: 0.5rem 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  body.sidebar-collapsed .user-profile-row {
+    justify-content: center !important;
+    gap: 0 !important;
+    width: auto;
+  }
+
+  body.sidebar-collapsed .user-profile-info {
+    opacity: 0;
+    max-width: 0;
+    width: 0;
+    height: 0;
+    transform: translateX(-6px);
+    pointer-events: none;
+  }
+
+  body.sidebar-collapsed .btn-logout-sidebar {
+    padding: 0;
+    width: 36px;
+    height: 36px;
+    margin-top: 0.5rem;
+    gap: 0;
+  }
+
+  body.sidebar-collapsed .btn-logout-sidebar span {
+    opacity: 0;
+    max-width: 0;
+    width: 0;
+    pointer-events: none;
+  }
+}
+
+/* Botón discreto en escritorio para contraer/expandir Sidebar */
+.btn-sidebar-toggle {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: #ffffff;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.btn-sidebar-toggle:hover {
+  background-color: #f1f5f9;
+  color: var(--sprint-slate);
+  border-color: #cbd5e1;
+}
+
+.btn-sidebar-toggle i {
+  font-size: 1rem;
+  transition: transform 0.28s var(--sidebar-ease);
+}
+
+body.sidebar-collapsed .btn-sidebar-toggle i {
+  transform: rotate(180deg);
 }
 
 /* Topbar Superior del Contenido Principal */
@@ -347,6 +565,11 @@ body {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
+.input-sprint-container.input-invalid {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12) !important;
+}
+
 .input-sprint-container .form-control {
   border: none !important;
   box-shadow: none !important;
@@ -424,7 +647,7 @@ body {
 }
 
 /* ==========================================================================
-   3. PANEL DE FACTURACIÓN POS (PUNTO DE VENTA)
+   3. PANEL DE FACTURACIÓN POS Y CHIPS DE VEHÍCULOS
    ========================================================================== */
 .panel-facturacion-pos {
   background-color: var(--sprint-slate) !important;
@@ -450,6 +673,31 @@ body {
 .tarjeta-categoria:hover {
   border-color: #94a3b8 !important;
   background-color: #f8fafc;
+}
+
+/* Chips de vehículos asociados al cliente */
+.chip-vehiculo-cliente {
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid #cbd5e1;
+  background-color: #f8fafc;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chip-vehiculo-cliente:hover {
+  border-color: var(--sprint-blue);
+  color: var(--sprint-blue);
+  background-color: #eff6ff;
+}
+
+.chip-vehiculo-cliente.active {
+  background-color: var(--sprint-blue);
+  border-color: var(--sprint-blue);
+  color: #ffffff;
 }
 
 /* ==========================================================================

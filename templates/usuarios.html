@@ -73,26 +73,42 @@
                             {% endif %}
                         </td>
                         <td class="text-end pe-4">
-                            {% if u.id == request.session.usuario_id %}
-                                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-3 py-1">
-                                    <i class="bi bi-person-check-fill me-1"></i>En sesión
-                                </span>
-                            {% else %}
-                                <form method="POST" class="d-inline" onsubmit="return confirmarEstadoEmpleado(event, this, '{{ u.nombre_completo|escapejs }}', {{ u.estado }});">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="accion" value="alternar_estado">
-                                    <input type="hidden" name="usuario_id" value="{{ u.id }}">
-                                    {% if u.estado == 1 %}
-                                        <button type="submit" class="btn btn-sm btn-light border text-danger" title="Desactivar empleado">
-                                            <i class="bi bi-lock-fill me-1"></i>Desactivar
-                                        </button>
-                                    {% else %}
-                                        <button type="submit" class="btn btn-sm btn-light border text-success" title="Activar empleado">
-                                            <i class="bi bi-unlock-fill me-1"></i>Activar
-                                        </button>
-                                    {% endif %}
-                                </form>
-                            {% endif %}
+                            <div class="d-inline-flex align-items-center gap-2">
+                                <button type="button"
+                                        class="btn btn-sm btn-light border text-dark btn-editar-empleado"
+                                        title="Editar datos del empleado"
+                                        data-id="{{ u.id }}"
+                                        data-nombre="{{ u.nombre_completo }}"
+                                        data-correo="{{ u.correo }}"
+                                        data-rol="{{ u.rol_id }}">
+                                    <i class="bi bi-pencil-square text-primary"></i>
+                                </button>
+
+                                {% if u.id == request.session.usuario_id %}
+                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-3 py-1">
+                                        <i class="bi bi-person-check-fill me-1"></i>En sesión
+                                    </span>
+                                {% elif u.id == 1 %}
+                                    <span class="badge bg-light text-secondary border rounded-pill px-3 py-1" title="Cuenta principal protegida">
+                                        <i class="bi bi-shield-lock-fill me-1"></i>Principal
+                                    </span>
+                                {% else %}
+                                    <form method="POST" class="d-inline" onsubmit="return confirmarEstadoEmpleado(event, this, '{{ u.nombre_completo|escapejs }}', {{ u.estado }});">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="accion" value="alternar_estado">
+                                        <input type="hidden" name="usuario_id" value="{{ u.id }}">
+                                        {% if u.estado == 1 %}
+                                            <button type="submit" class="btn btn-sm btn-light border text-danger" title="Desactivar empleado">
+                                                <i class="bi bi-lock-fill me-1"></i>Desactivar
+                                            </button>
+                                        {% else %}
+                                            <button type="submit" class="btn btn-sm btn-light border text-success" title="Activar empleado">
+                                                <i class="bi bi-unlock-fill me-1"></i>Activar
+                                            </button>
+                                        {% endif %}
+                                    </form>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% empty %}
@@ -106,11 +122,11 @@
     </div>
 </div>
 
-<!-- MODAL: Nuevo Empleado -->
+<!-- MODAL 1: Nuevo Empleado -->
 <div class="modal fade" id="modalNuevoEmpleado" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <form method="POST">
+            <form method="POST" id="formNuevoEmpleado" novalidate>
                 {% csrf_token %}
                 <input type="hidden" name="accion" value="crear_usuario">
                 <div class="modal-header border-bottom py-3 px-4">
@@ -121,14 +137,16 @@
                     <div class="mb-3">
                         <label class="label-sprint">Nombre Completo</label>
                         <div class="input-group input-sprint-container">
-                            <input type="text" name="nombre_completo" class="form-control" placeholder="Ej. Roberto Gómez" required>
+                            <input type="text" name="nombre_completo" id="nuevoEmpNombre" class="form-control" placeholder="Ej. Roberto Gómez" required>
                         </div>
                     </div>
                     <div class="mb-3">
                         <label class="label-sprint">Correo Electrónico</label>
-                        <div class="input-group input-sprint-container">
-                            <input type="email" name="correo" class="form-control" placeholder="roberto@sprintwash.local" required>
+                        <div class="input-group input-sprint-container" id="boxNuevoEmpCorreo">
+                            <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                            <input type="email" name="correo" id="nuevoEmpCorreo" class="form-control" placeholder="roberto@sprintwash.local" required>
                         </div>
+                        <small id="errNuevoEmpCorreo" class="text-danger fw-medium d-none mt-1 d-block"></small>
                     </div>
                     <div class="mb-3">
                         <label class="label-sprint">Rol en el Sistema</label>
@@ -147,7 +165,62 @@
                 </div>
                 <div class="modal-footer border-top py-3 px-4">
                     <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary px-4">Guardar Empleado</button>
+                    <button type="submit" id="btnGuardarNuevoEmp" class="btn btn-primary px-4">Guardar Empleado</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 2: Editar Empleado (PATCH /finanzas/usuarios/{id}) -->
+<div class="modal fade" id="modalEditarEmpleado" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" id="formEditarEmpleado" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="editar_usuario">
+                <input type="hidden" name="usuario_id" id="editEmpId">
+                <div class="modal-header border-bottom py-3 px-4">
+                    <h6 class="modal-title fw-bold text-dark">Editar Datos del Empleado</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="label-sprint">Nombre Completo</label>
+                        <div class="input-group input-sprint-container">
+                            <input type="text" name="nombre_completo" id="editEmpNombre" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="label-sprint">Correo Electrónico</label>
+                        <div class="input-group input-sprint-container" id="boxEditEmpCorreo">
+                            <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                            <input type="email" name="correo" id="editEmpCorreo" class="form-control" required>
+                        </div>
+                        <small id="errEditEmpCorreo" class="text-danger fw-medium d-none mt-1 d-block"></small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="label-sprint">Rol en el Sistema</label>
+                        <select name="rol_id" id="editEmpRol" class="form-select" required>
+                            <option value="1">ENCARGADO GENERAL</option>
+                            <option value="2">CAJERO</option>
+                            <option value="3">OPERARIO / SUPERVISOR</option>
+                        </select>
+                        <small id="avisoAdminPrincipalRol" class="text-muted d-none mt-1 d-block">
+                            <i class="bi bi-shield-lock me-1"></i>El Administrador Principal conserva siempre el rol de Encargado General.
+                        </small>
+                    </div>
+                    <div class="mb-1">
+                        <label class="label-sprint">Nueva Contraseña <span class="text-muted fw-normal">(Opcional - dejar vacío para conservar la actual)</span></label>
+                        <div class="input-group input-sprint-container">
+                            <span class="input-group-text"><i class="bi bi-key"></i></span>
+                            <input type="password" name="password" id="editEmpPassword" class="form-control" placeholder="••••••••">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top py-3 px-4">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" id="btnGuardarEditEmp" class="btn btn-primary px-4">Guardar Cambios</button>
                 </div>
             </form>
         </div>
@@ -155,11 +228,84 @@
 </div>
 
 <script>
+    const USUARIOS_REGISTRADOS = [
+        {% for u in usuarios %}
+        {
+            id: {{ u.id }},
+            correo: "{{ u.correo|default:''|lower|escapejs }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
     document.getElementById('buscadorUsuarios').addEventListener('input', function() {
         const q = this.value.toLowerCase();
         document.querySelectorAll('.fila-usuario').forEach(f => {
             f.style.display = f.innerText.toLowerCase().includes(q) ? '' : 'none';
         });
+    });
+
+    // Abrir modal de edición de empleado
+    document.querySelectorAll('.btn-editar-empleado').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const uid = parseInt(this.dataset.id);
+            document.getElementById('editEmpId').value = uid;
+            document.getElementById('editEmpNombre').value = this.dataset.nombre;
+            document.getElementById('editEmpCorreo').value = this.dataset.correo;
+            document.getElementById('editEmpRol').value = this.dataset.rol;
+            document.getElementById('editEmpPassword').value = '';
+
+            const avisoRol = document.getElementById('avisoAdminPrincipalRol');
+            if (uid === 1) {
+                avisoRol.classList.remove('d-none');
+            } else {
+                avisoRol.classList.add('d-none');
+            }
+
+            validarCorreoEmpleado('edit');
+            const modal = new bootstrap.Modal(document.getElementById('modalEditarEmpleado'));
+            modal.show();
+        });
+    });
+
+    // Validación en tiempo real de Correo Duplicado antes de dar clic en Guardar
+    function validarCorreoEmpleado(modo) {
+        const esNuevo = modo === 'nuevo';
+        const idExcluir = esNuevo ? null : parseInt(document.getElementById('editEmpId').value || '0');
+        const correoInput = document.getElementById(esNuevo ? 'nuevoEmpCorreo' : 'editEmpCorreo');
+        const boxCorreo = document.getElementById(esNuevo ? 'boxNuevoEmpCorreo' : 'boxEditEmpCorreo');
+        const errCorreo = document.getElementById(esNuevo ? 'errNuevoEmpCorreo' : 'errEditEmpCorreo');
+        const btnGuardar = document.getElementById(esNuevo ? 'btnGuardarNuevoEmp' : 'btnGuardarEditEmp');
+
+        const correoVal = correoInput.value.trim().toLowerCase();
+        const duplicado = correoVal.length > 0 && USUARIOS_REGISTRADOS.some(u => u.id !== idExcluir && u.correo === correoVal);
+
+        if (duplicado) {
+            boxCorreo.classList.add('input-invalid');
+            errCorreo.innerText = 'Este correo electrónico ya está registrado';
+            errCorreo.classList.remove('d-none');
+            btnGuardar.disabled = true;
+            return false;
+        } else {
+            boxCorreo.classList.remove('input-invalid');
+            errCorreo.classList.add('d-none');
+            btnGuardar.disabled = false;
+            return true;
+        }
+    }
+
+    document.getElementById('nuevoEmpCorreo').addEventListener('input', () => validarCorreoEmpleado('nuevo'));
+    document.getElementById('editEmpCorreo').addEventListener('input', () => validarCorreoEmpleado('edit'));
+
+    document.getElementById('formNuevoEmpleado').addEventListener('submit', function(e) {
+        if (!validarCorreoEmpleado('nuevo') || !document.getElementById('nuevoEmpNombre').value.trim()) {
+            e.preventDefault();
+        }
+    });
+
+    document.getElementById('formEditarEmpleado').addEventListener('submit', function(e) {
+        if (!validarCorreoEmpleado('edit') || !document.getElementById('editEmpNombre').value.trim()) {
+            e.preventDefault();
+        }
     });
 
     function confirmarEstadoEmpleado(event, form, nombre, estadoActual) {

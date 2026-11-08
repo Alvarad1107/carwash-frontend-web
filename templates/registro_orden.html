@@ -2,6 +2,16 @@
 {% block nav_title %}PUNTO DE VENTA / NUEVA ORDEN{% endblock %}
 
 {% block content %}
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-success{% endif %} alert-dismissible fade show rounded-3 shadow-sm mb-4 border-0" role="alert">
+        <i class="bi {% if message.tags == 'error' %}bi-exclamation-octagon-fill{% else %}bi-check-circle-fill{% endif %} me-2"></i>
+        <strong>{{ message }}</strong>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+{% endif %}
+
 <form method="POST" id="formGenerarOrden">
     {% csrf_token %}
     <input type="hidden" name="accion" value="generar_orden">
@@ -11,14 +21,19 @@
     <input type="hidden" name="impuestos" id="inputImpuestos" value="1.04">
     <input type="hidden" name="total_pagar" id="inputTotalPagar" value="9.04">
 
-    <div class="row g-4">
+    <div class="row g-4 align-items-start">
         
         <!-- COLUMNA 1: Datos del Cliente -->
         <div class="col-lg-3">
-            <div class="card card-sprint p-4 h-100 d-flex flex-column">
+            <div class="card card-sprint p-4">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="fw-bold text-dark mb-0">1. Cliente</h6>
-                    <span class="badge bg-light text-secondary border">{{ clientes|length }} reg.</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <h6 class="fw-bold text-dark mb-0">Cliente</h6>
+                        <span class="badge bg-light text-secondary border">{{ clientes|length }}</span>
+                    </div>
+                    <button type="button" class="btn btn-primary btn-sm px-2 py-1" data-bs-toggle="modal" data-bs-target="#modalNuevoCliente" title="Registrar nuevo cliente">
+                        <i class="bi bi-person-plus-fill me-1"></i>Nuevo
+                    </button>
                 </div>
                 
                 <div class="input-group input-sprint-container mb-3">
@@ -28,37 +43,46 @@
                 
                 <span class="kpi-label mb-2">Directorio de Clientes</span>
                 
-                <div class="list-group list-group-flush mb-3 overflow-auto flex-grow-1" style="max-height: 310px;">
+                <div class="list-group list-group-flush overflow-auto" style="max-height: 360px;">
                     {% for c in clientes %}
-                    <button type="button"
-                            class="list-group-item list-group-item-action border-0 rounded-3 px-2 py-2 d-flex align-items-center gap-2 mb-1 item-cliente-caja {% if forloop.first %}bg-primary bg-opacity-10 border-start border-primary border-4{% else %}bg-transparent{% endif %}"
-                            data-id="{{ c.id }}"
-                            data-nombre="{{ c.nombre_completo }}">
-                        <i class="bi bi-person-circle fs-4 text-sprint"></i>
-                        <div class="text-start overflow-hidden">
-                            <span class="d-block fw-semibold text-dark text-truncate" style="font-size: 0.86rem;">{{ c.nombre_completo }}</span>
-                            <span class="d-block text-muted text-truncate" style="font-size: 0.75rem;">{{ c.telefono|default:c.correo }}</span>
+                    <div class="list-group-item border-0 rounded-3 px-2 py-2 d-flex align-items-center justify-content-between gap-2 mb-1 item-cliente-caja {% if forloop.first %}bg-primary bg-opacity-10 border-start border-primary border-4{% else %}bg-transparent{% endif %}"
+                         style="cursor: pointer;"
+                         data-id="{{ c.id }}"
+                         data-nombre="{{ c.nombre_completo }}"
+                         data-telefono="{{ c.telefono|default:'' }}"
+                         data-correo="{{ c.correo|default:'' }}">
+                        <div class="d-flex align-items-center gap-2 overflow-hidden flex-grow-1">
+                            <i class="bi bi-person-circle fs-4 text-sprint flex-shrink-0"></i>
+                            <div class="text-start overflow-hidden">
+                                <span class="d-block fw-semibold text-dark text-truncate" style="font-size: 0.86rem;">{{ c.nombre_completo }}</span>
+                                <span class="d-block text-muted text-truncate" style="font-size: 0.75rem;">{{ c.telefono|default:c.correo|default:"Sin contacto" }}</span>
+                            </div>
                         </div>
-                    </button>
+                        <button type="button"
+                                class="btn btn-sm btn-light border px-2 py-1 flex-shrink-0 btn-editar-cliente-pos"
+                                title="Editar datos del cliente"
+                                data-id="{{ c.id }}"
+                                data-nombre="{{ c.nombre_completo }}"
+                                data-telefono="{{ c.telefono|default:'' }}"
+                                data-correo="{{ c.correo|default:'' }}">
+                            <i class="bi bi-pencil-square text-secondary"></i>
+                        </button>
+                    </div>
                     {% empty %}
                     <p class="text-muted small py-3 text-center mb-0">No hay clientes registrados.</p>
                     {% endfor %}
                 </div>
-                
-                <button type="button" class="btn btn-outline-primary w-100 mt-auto py-2" data-bs-toggle="modal" data-bs-target="#modalNuevoCliente">
-                    <i class="bi bi-person-plus me-1"></i>Nuevo Cliente
-                </button>
             </div>
         </div>
 
         <!-- COLUMNA 2: Datos del Vehículo y Servicios -->
         <div class="col-lg-5">
-            <div class="card card-sprint p-4 h-100">
-                <h6 class="fw-bold mb-3 text-dark">2. Vehículo y Servicios</h6>
+            <div class="card card-sprint p-4">
+                <h6 class="fw-bold mb-3 text-dark">Vehículo y Servicios</h6>
                 
                 <!-- Selector Visual de Tipo de Auto -->
                 <span class="kpi-label mb-2">Categoría del Vehículo</span>
-                <div class="row g-2 mb-4 text-center">
+                <div class="row g-2 mb-3 text-center">
                     {% for cat in categorias %}
                     <div class="col-6 col-md-4">
                         <div class="border p-2 py-3 tarjeta-categoria h-100 {% if forloop.first %}border-primary bg-primary bg-opacity-10{% endif %}"
@@ -76,13 +100,24 @@
                     {% endfor %}
                 </div>
 
+                <!-- Vehículos Registrados del Cliente Seleccionado (Chips 1 Cliente -> N Vehículos) -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="kpi-label mb-0">Vehículos del Cliente</span>
+                        <small id="avisoAutocompletadoPlaca" class="text-primary fw-semibold d-none" style="font-size: 0.75rem;">
+                            <i class="bi bi-magic me-1"></i>Autocompletado por placa
+                        </small>
+                    </div>
+                    <div id="contenedorVehiculosCliente" class="d-flex flex-wrap gap-2"></div>
+                </div>
+
                 <!-- Inputs del Auto y Bahía -->
                 <div class="row g-3 mb-4">
                     <div class="col-md-7 text-start">
                         <label class="label-sprint">Placa del Vehículo</label>
                         <div class="input-group input-sprint-container">
                             <span class="input-group-text"><i class="bi bi-credit-card-2-front"></i></span>
-                            <input type="text" name="placa" id="inputPlaca" class="form-control text-uppercase" placeholder="P-123456" required>
+                            <input type="text" name="placa" id="inputPlaca" class="form-control text-uppercase" placeholder="P-123456" autocomplete="off" required>
                         </div>
                     </div>
                     <div class="col-md-5 text-start">
@@ -133,16 +168,16 @@
             </div>
         </div>
 
-        <!-- COLUMNA 3: Panel de Facturación Sobrio (Tono Slate #0f172a) -->
+        <!-- COLUMNA 3: Panel de Facturación Sobrio (Tono Slate #0f172a, compacto y fluido) -->
         <div class="col-lg-4">
-            <div class="card panel-facturacion-pos p-4 h-100 d-flex flex-column">
+            <div class="card panel-facturacion-pos p-4" style="position: sticky; top: 84px;">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <span class="text-uppercase fw-bold small" style="color: #94a3b8; letter-spacing: 0.06em;">3. Resumen de Orden</span>
+                    <span class="text-uppercase fw-bold small" style="color: #94a3b8; letter-spacing: 0.06em;">Resumen de Orden</span>
                     <span class="badge bg-primary bg-opacity-25 text-white border border-primary border-opacity-50">Pre-Factura</span>
                 </div>
                 
-                <div class="panel-facturacion-box mb-4">
-                    <div class="mb-3 pb-3 border-bottom" style="border-color: #334155 !important;">
+                <div class="panel-facturacion-box mb-3">
+                    <div class="mb-2 pb-2 border-bottom" style="border-color: #334155 !important;">
                         <span class="d-block text-uppercase" style="font-size: 0.7rem; color: #94a3b8; letter-spacing: 0.05em;">Cliente</span>
                         <span class="fw-bold text-white fs-6" id="resumenCliente">{{ clientes.0.nombre_completo|default:"Seleccione un cliente" }}</span>
                     </div>
@@ -153,7 +188,7 @@
                     </div>
                 </div>
 
-                <div class="px-1 mb-4 flex-grow-1">
+                <div class="px-1 mb-3">
                     <span class="d-block text-uppercase mb-2" style="font-size: 0.7rem; color: #94a3b8; letter-spacing: 0.05em;">Desglose de Servicios</span>
                     <div class="d-flex justify-content-between mb-2 small">
                         <span style="color: #cbd5e1;" id="resumenServicioBaseNombre">Lavado Básico ({{ categorias.0.nombre|default:"Sedán" }})</span>
@@ -164,7 +199,7 @@
                     
                     <hr style="border-color: #334155;">
                     
-                    <div class="d-flex justify-content-between mb-2 small">
+                    <div class="d-flex justify-content-between mb-1 small">
                         <span style="color: #94a3b8;">Subtotal</span>
                         <span class="text-white" id="resumenSubtotal">$8.00</span>
                     </div>
@@ -178,7 +213,7 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-primary w-100 py-3 mt-auto d-flex justify-content-center align-items-center gap-2">
+                <button type="submit" class="btn btn-primary w-100 py-3 d-flex justify-content-center align-items-center gap-2">
                     <span>Generar Orden de Lavado</span>
                     <i class="bi bi-arrow-right"></i>
                 </button>
@@ -187,11 +222,11 @@
     </div>
 </form>
 
-<!-- MODAL: Nuevo Cliente -->
+<!-- MODAL 1: Nuevo Cliente (Con máscara 0000-0000 y validación en vivo de duplicados) -->
 <div class="modal fade" id="modalNuevoCliente" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <form method="POST">
+            <form method="POST" id="formNuevoClienteCaja" novalidate>
                 {% csrf_token %}
                 <input type="hidden" name="accion" value="crear_cliente">
                 <div class="modal-header border-bottom py-3 px-4">
@@ -202,48 +237,218 @@
                     <div class="mb-3">
                         <label class="label-sprint">Nombre Completo</label>
                         <div class="input-group input-sprint-container">
-                            <input type="text" name="nombre_completo" class="form-control" placeholder="Ej. Carlos Mendoza" required>
+                            <input type="text" name="nombre_completo" id="nuevoCliNombre" class="form-control" placeholder="Ej. Carlos Mendoza" required>
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label class="label-sprint">Teléfono</label>
-                        <div class="input-group input-sprint-container">
-                            <input type="text" name="telefono" class="form-control" placeholder="7777-8888">
+                        <label class="label-sprint">Teléfono (Formato 0000-0000)</label>
+                        <div class="input-group input-sprint-container" id="boxNuevoCliTel">
+                            <span class="input-group-text"><i class="bi bi-telephone"></i></span>
+                            <input type="text" name="telefono" id="nuevoCliTel" class="form-control input-telefono-sv" placeholder="7777-8888" maxlength="9" pattern="\d{4}-\d{4}" inputmode="numeric" required>
                         </div>
+                        <small id="errNuevoCliTel" class="text-danger fw-medium d-none mt-1 d-block"></small>
                     </div>
                     <div class="mb-1">
                         <label class="label-sprint">Correo Electrónico</label>
-                        <div class="input-group input-sprint-container">
-                            <input type="email" name="correo" class="form-control" placeholder="cliente@correo.com">
+                        <div class="input-group input-sprint-container" id="boxNuevoCliCorreo">
+                            <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                            <input type="email" name="correo" id="nuevoCliCorreo" class="form-control" placeholder="cliente@correo.com">
                         </div>
+                        <small id="errNuevoCliCorreo" class="text-danger fw-medium d-none mt-1 d-block"></small>
                     </div>
                 </div>
                 <div class="modal-footer border-top py-3 px-4">
                     <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary px-4">Guardar Cliente</button>
+                    <button type="submit" id="btnGuardarNuevoCli" class="btn btn-primary px-4">Guardar Cliente</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- Script para cálculo en Tiempo Real y Confirmación SweetAlert2 -->
+<!-- MODAL 2: Editar Cliente Existente (PATCH /clientes/{id}) -->
+<div class="modal fade" id="modalEditarCliente" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" id="formEditarClienteCaja" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="editar_cliente">
+                <input type="hidden" name="cliente_id" id="editCliId">
+                <div class="modal-header border-bottom py-3 px-4">
+                    <h6 class="modal-title fw-bold text-dark">Editar Datos del Cliente</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="label-sprint">Nombre Completo</label>
+                        <div class="input-group input-sprint-container">
+                            <input type="text" name="nombre_completo" id="editCliNombre" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="label-sprint">Teléfono (Formato 0000-0000)</label>
+                        <div class="input-group input-sprint-container" id="boxEditCliTel">
+                            <span class="input-group-text"><i class="bi bi-telephone"></i></span>
+                            <input type="text" name="telefono" id="editCliTel" class="form-control input-telefono-sv" placeholder="7777-8888" maxlength="9" pattern="\d{4}-\d{4}" inputmode="numeric" required>
+                        </div>
+                        <small id="errEditCliTel" class="text-danger fw-medium d-none mt-1 d-block"></small>
+                    </div>
+                    <div class="mb-1">
+                        <label class="label-sprint">Correo Electrónico</label>
+                        <div class="input-group input-sprint-container" id="boxEditCliCorreo">
+                            <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                            <input type="email" name="correo" id="editCliCorreo" class="form-control" placeholder="cliente@correo.com">
+                        </div>
+                        <small id="errEditCliCorreo" class="text-danger fw-medium d-none mt-1 d-block"></small>
+                    </div>
+                </div>
+                <div class="modal-footer border-top py-3 px-4">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" id="btnGuardarEditCli" class="btn btn-primary px-4">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Script para POS Inteligente, Vehículos por Cliente, Autocompletado y Validaciones en Tiempo Real -->
 <script>
+    const CLIENTES_REGISTRADOS = [
+        {% for c in clientes %}
+        {
+            id: {{ c.id }},
+            nombre: "{{ c.nombre_completo|escapejs }}",
+            telefono: "{{ c.telefono|default:''|escapejs }}",
+            correo: "{{ c.correo|default:''|lower|escapejs }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    const VEHICULOS_REGISTRADOS = [
+        {% for v in vehiculos %}
+        {
+            id: {{ v.id }},
+            cliente_id: {{ v.cliente_id }},
+            categoria_vehiculo_id: {{ v.categoria_vehiculo_id }},
+            placa: "{{ v.placa|default:''|upper|escapejs }}",
+            marca: "{{ v.marca|default:''|escapejs }}",
+            modelo: "{{ v.modelo|default:''|escapejs }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
     const primeraTarjeta = document.querySelector('.tarjeta-categoria');
     let categoriaActualNombre = primeraTarjeta ? primeraTarjeta.dataset.nombre : "{{ categorias.0.nombre|default:'Sedán' }}";
     let precioBaseActual = primeraTarjeta ? (parseFloat(primeraTarjeta.dataset.precio) || 4.00) : 4.00;
 
-    // 1. Selección de Cliente
-    document.querySelectorAll('.item-cliente-caja').forEach(btn => {
-        btn.addEventListener('click', function() {
-            document.querySelectorAll('.item-cliente-caja').forEach(b => {
-                b.classList.remove('bg-primary', 'bg-opacity-10', 'border-start', 'border-primary', 'border-4');
-                b.classList.add('bg-transparent');
+    function seleccionarTarjetaCategoriaPorId(catId) {
+        const tarjeta = document.querySelector(`.tarjeta-categoria[data-id="${catId}"]`);
+        if (!tarjeta) return;
+        document.querySelectorAll('.tarjeta-categoria').forEach(c => {
+            c.classList.remove('border-primary', 'bg-primary', 'bg-opacity-10');
+            c.querySelector('.icono-cat').classList.remove('text-primary');
+            c.querySelector('.icono-cat').classList.add('text-muted');
+        });
+        tarjeta.classList.add('border-primary', 'bg-primary', 'bg-opacity-10');
+        tarjeta.querySelector('.icono-cat').classList.remove('text-muted');
+        tarjeta.querySelector('.icono-cat').classList.add('text-primary');
+
+        categoriaActualNombre = tarjeta.dataset.nombre;
+        precioBaseActual = parseFloat(tarjeta.dataset.precio) || 4.00;
+        document.getElementById('inputCategoriaId').value = tarjeta.dataset.id;
+    }
+
+    function seleccionarClienteVisualmente(clienteId) {
+        const item = document.querySelector(`.item-cliente-caja[data-id="${clienteId}"]`);
+        if (!item) return;
+        document.querySelectorAll('.item-cliente-caja').forEach(b => {
+            b.classList.remove('bg-primary', 'bg-opacity-10', 'border-start', 'border-primary', 'border-4');
+            b.classList.add('bg-transparent');
+        });
+        item.classList.remove('bg-transparent');
+        item.classList.add('bg-primary', 'bg-opacity-10', 'border-start', 'border-primary', 'border-4');
+        document.getElementById('inputClienteId').value = item.dataset.id;
+        document.getElementById('resumenCliente').innerText = item.dataset.nombre;
+    }
+
+    function renderizarChipsVehiculosCliente(clienteId, placaActiva = null, autoRellenarPrimero = false) {
+        const contenedor = document.getElementById('contenedorVehiculosCliente');
+        const autosCliente = VEHICULOS_REGISTRADOS.filter(v => v.cliente_id === parseInt(clienteId));
+        contenedor.innerHTML = '';
+
+        autosCliente.forEach((v, idx) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            const esActivo = placaActiva ? (v.placa === placaActiva.toUpperCase()) : (autoRellenarPrimero && idx === 0);
+            btn.className = 'chip-vehiculo-cliente' + (esActivo ? ' active' : '');
+            const desc = `${v.marca} ${v.modelo}`.trim() || 'Vehículo';
+            btn.innerHTML = `<i class="bi bi-car-front me-1"></i>${v.placa} • ${desc}`;
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.chip-vehiculo-cliente').forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+                document.getElementById('inputPlaca').value = v.placa;
+                document.getElementById('inputMarca').value = v.marca;
+                document.getElementById('inputModelo').value = v.modelo;
+                document.getElementById('avisoAutocompletadoPlaca').classList.add('d-none');
+                seleccionarTarjetaCategoriaPorId(v.categoria_vehiculo_id);
+                actualizarResumen();
             });
-            this.classList.remove('bg-transparent');
-            this.classList.add('bg-primary', 'bg-opacity-10', 'border-start', 'border-primary', 'border-4');
-            document.getElementById('inputClienteId').value = this.dataset.id;
-            document.getElementById('resumenCliente').innerText = this.dataset.nombre;
+            contenedor.appendChild(btn);
+
+            if (autoRellenarPrimero && idx === 0 && !placaActiva) {
+                document.getElementById('inputPlaca').value = v.placa;
+                document.getElementById('inputMarca').value = v.marca;
+                document.getElementById('inputModelo').value = v.modelo;
+                seleccionarTarjetaCategoriaPorId(v.categoria_vehiculo_id);
+            }
+        });
+
+        const btnNuevo = document.createElement('button');
+        btnNuevo.type = 'button';
+        btnNuevo.className = 'chip-vehiculo-cliente' + (autosCliente.length === 0 ? ' active' : '');
+        btnNuevo.innerHTML = `<i class="bi bi-plus-lg me-1"></i>Nuevo vehículo`;
+        btnNuevo.addEventListener('click', function() {
+            document.querySelectorAll('.chip-vehiculo-cliente').forEach(c => c.classList.remove('active'));
+            this.classList.add('active');
+            document.getElementById('inputPlaca').value = '';
+            document.getElementById('inputMarca').value = '';
+            document.getElementById('inputModelo').value = '';
+            document.getElementById('avisoAutocompletadoPlaca').classList.add('d-none');
+            document.getElementById('inputPlaca').focus();
+            actualizarResumen();
+        });
+        contenedor.appendChild(btnNuevo);
+
+        if (autoRellenarPrimero && autosCliente.length === 0) {
+            document.getElementById('inputPlaca').value = '';
+            document.getElementById('inputMarca').value = '';
+            document.getElementById('inputModelo').value = '';
+        }
+        actualizarResumen();
+    }
+
+    // 1. Selección de Cliente en Columna 1
+    document.querySelectorAll('.item-cliente-caja').forEach(item => {
+        item.addEventListener('click', function(e) {
+            if (e.target.closest('.btn-editar-cliente-pos')) return;
+            const cid = parseInt(this.dataset.id);
+            seleccionarClienteVisualmente(cid);
+            document.getElementById('avisoAutocompletadoPlaca').classList.add('d-none');
+            renderizarChipsVehiculosCliente(cid, null, true);
+        });
+    });
+
+    // 1.B Botón de Edición de Cliente en Columna 1
+    document.querySelectorAll('.btn-editar-cliente-pos').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            document.getElementById('editCliId').value = this.dataset.id;
+            document.getElementById('editCliNombre').value = this.dataset.nombre;
+            document.getElementById('editCliTel').value = this.dataset.telefono || '';
+            document.getElementById('editCliCorreo').value = this.dataset.correo || '';
+            validarFormularioCliente('edit');
+            const modal = new bootstrap.Modal(document.getElementById('modalEditarCliente'));
+            modal.show();
         });
     });
 
@@ -258,24 +463,31 @@
     // 3. Selección de Categoría de Vehículo
     document.querySelectorAll('.tarjeta-categoria').forEach(card => {
         card.addEventListener('click', function() {
-            document.querySelectorAll('.tarjeta-categoria').forEach(c => {
-                c.classList.remove('border-primary', 'bg-primary', 'bg-opacity-10');
-                c.querySelector('.icono-cat').classList.remove('text-primary');
-                c.querySelector('.icono-cat').classList.add('text-muted');
-            });
-            this.classList.add('border-primary', 'bg-primary', 'bg-opacity-10');
-            this.querySelector('.icono-cat').classList.remove('text-muted');
-            this.querySelector('.icono-cat').classList.add('text-primary');
-
-            categoriaActualNombre = this.dataset.nombre;
-            precioBaseActual = parseFloat(this.dataset.precio) || 4.00;
-            document.getElementById('inputCategoriaId').value = this.dataset.id;
+            seleccionarTarjetaCategoriaPorId(this.dataset.id);
             actualizarResumen();
         });
     });
 
-    // 4. Inputs de Vehículo y Switches de Servicios Extras
-    ['inputPlaca', 'inputMarca', 'inputModelo'].forEach(id => {
+    // 4. Autocompletado Inteligente al escribir Placa en inputPlaca
+    document.getElementById('inputPlaca').addEventListener('input', function() {
+        const placaEscrita = this.value.trim().toUpperCase();
+        const vehiculoMatch = VEHICULOS_REGISTRADOS.find(v => v.placa === placaEscrita);
+        const aviso = document.getElementById('avisoAutocompletadoPlaca');
+
+        if (vehiculoMatch) {
+            document.getElementById('inputMarca').value = vehiculoMatch.marca;
+            document.getElementById('inputModelo').value = vehiculoMatch.modelo;
+            seleccionarTarjetaCategoriaPorId(vehiculoMatch.categoria_vehiculo_id);
+            seleccionarClienteVisualmente(vehiculoMatch.cliente_id);
+            renderizarChipsVehiculosCliente(vehiculoMatch.cliente_id, vehiculoMatch.placa, false);
+            aviso.classList.remove('d-none');
+        } else {
+            aviso.classList.add('d-none');
+        }
+        actualizarResumen();
+    });
+
+    ['inputMarca', 'inputModelo'].forEach(id => {
         document.getElementById(id).addEventListener('input', actualizarResumen);
     });
     document.querySelectorAll('.switch-extra').forEach(sw => {
@@ -319,7 +531,90 @@
         document.getElementById('inputTotalPagar').value = total.toFixed(2);
     }
 
-    // 5. Confirmación SweetAlert2 al Generar Orden
+    // 5. Validación en Tiempo Real de Teléfono (0000-0000) y Correo Duplicado antes de Guardar
+    function validarFormularioCliente(modo) {
+        const esNuevo = modo === 'nuevo';
+        const idExcluir = esNuevo ? null : parseInt(document.getElementById('editCliId').value || '0');
+        const telInput = document.getElementById(esNuevo ? 'nuevoCliTel' : 'editCliTel');
+        const correoInput = document.getElementById(esNuevo ? 'nuevoCliCorreo' : 'editCliCorreo');
+        const boxTel = document.getElementById(esNuevo ? 'boxNuevoCliTel' : 'boxEditCliTel');
+        const boxCorreo = document.getElementById(esNuevo ? 'boxNuevoCliCorreo' : 'boxEditCliCorreo');
+        const errTel = document.getElementById(esNuevo ? 'errNuevoCliTel' : 'errEditCliTel');
+        const errCorreo = document.getElementById(esNuevo ? 'errNuevoCliCorreo' : 'errEditCliCorreo');
+        const btnGuardar = document.getElementById(esNuevo ? 'btnGuardarNuevoCli' : 'btnGuardarEditCli');
+
+        formatearTelefonoInput(telInput);
+        const telVal = telInput.value.trim();
+        const correoVal = correoInput.value.trim().toLowerCase();
+
+        let telInvalido = false;
+        let correoInvalido = false;
+
+        if (telVal.length > 0 && !/^\d{4}-\d{4}$/.test(telVal)) {
+            telInvalido = true;
+            boxTel.classList.add('input-invalid');
+            errTel.innerText = 'El teléfono debe tener exactamente 8 dígitos en formato 0000-0000.';
+            errTel.classList.remove('d-none');
+        } else if (telVal.length === 9 && CLIENTES_REGISTRADOS.some(c => c.id !== idExcluir && c.telefono === telVal)) {
+            telInvalido = true;
+            boxTel.classList.add('input-invalid');
+            errTel.innerText = 'Este número de teléfono ya pertenece a un cliente registrado';
+            errTel.classList.remove('d-none');
+        } else {
+            boxTel.classList.remove('input-invalid');
+            errTel.classList.add('d-none');
+        }
+
+        if (correoVal.length > 0 && CLIENTES_REGISTRADOS.some(c => c.id !== idExcluir && c.correo && c.correo === correoVal)) {
+            correoInvalido = true;
+            boxCorreo.classList.add('input-invalid');
+            errCorreo.innerText = 'Este correo electrónico ya está registrado';
+            errCorreo.classList.remove('d-none');
+        } else {
+            boxCorreo.classList.remove('input-invalid');
+            errCorreo.classList.add('d-none');
+        }
+
+        btnGuardar.disabled = (telInvalido || correoInvalido);
+        return !(telInvalido || correoInvalido) && /^\d{4}-\d{4}$/.test(telVal);
+    }
+
+    ['nuevoCliTel', 'nuevoCliCorreo'].forEach(id => {
+        document.getElementById(id).addEventListener('input', () => validarFormularioCliente('nuevo'));
+    });
+    ['editCliTel', 'editCliCorreo'].forEach(id => {
+        document.getElementById(id).addEventListener('input', () => validarFormularioCliente('edit'));
+    });
+
+    document.getElementById('formNuevoClienteCaja').addEventListener('submit', function(e) {
+        const nombre = document.getElementById('nuevoCliNombre').value.trim();
+        const tel = document.getElementById('nuevoCliTel').value.trim();
+        if (!nombre || !/^\d{4}-\d{4}$/.test(tel) || !validarFormularioCliente('nuevo')) {
+            e.preventDefault();
+            if (!/^\d{4}-\d{4}$/.test(tel)) {
+                document.getElementById('boxNuevoCliTel').classList.add('input-invalid');
+                const errTel = document.getElementById('errNuevoCliTel');
+                errTel.innerText = 'Ingrese un número válido de 8 dígitos en formato 0000-0000.';
+                errTel.classList.remove('d-none');
+            }
+        }
+    });
+
+    document.getElementById('formEditarClienteCaja').addEventListener('submit', function(e) {
+        const nombre = document.getElementById('editCliNombre').value.trim();
+        const tel = document.getElementById('editCliTel').value.trim();
+        if (!nombre || !/^\d{4}-\d{4}$/.test(tel) || !validarFormularioCliente('edit')) {
+            e.preventDefault();
+            if (!/^\d{4}-\d{4}$/.test(tel)) {
+                document.getElementById('boxEditCliTel').classList.add('input-invalid');
+                const errTel = document.getElementById('errEditCliTel');
+                errTel.innerText = 'Ingrese un número válido de 8 dígitos en formato 0000-0000.';
+                errTel.classList.remove('d-none');
+            }
+        }
+    });
+
+    // 6. Confirmación SweetAlert2 al Generar Orden
     document.getElementById('formGenerarOrden').addEventListener('submit', function(e) {
         e.preventDefault();
         const form = this;
@@ -351,7 +646,12 @@
         });
     });
 
-    // Inicializar montos reales al cargar la página
-    actualizarResumen();
+    // Inicializar vista con el primer cliente y sus vehículos registrados
+    const clienteInicialId = document.getElementById('inputClienteId').value;
+    if (clienteInicialId) {
+        renderizarChipsVehiculosCliente(clienteInicialId, null, true);
+    } else {
+        actualizarResumen();
+    }
 </script>
 {% endblock %}
