@@ -494,7 +494,8 @@ def registro_orden(request):
                     timeout=5,
                 )
                 if res.status_code == 200:
-                    messages.success(request, "Cliente registrado correctamente.")
+                    messages.success(
+                        request, "Cliente registrado correctamente.")
                 else:
                     try:
                         detalle = res.json().get("detail", "No se pudo registrar el cliente.")
@@ -516,7 +517,8 @@ def registro_orden(request):
                     timeout=5,
                 )
                 if res.status_code == 200:
-                    messages.success(request, "Datos del cliente actualizados correctamente.")
+                    messages.success(
+                        request, "Datos del cliente actualizados correctamente.")
                 else:
                     try:
                         detalle = res.json().get("detail", "No se pudo actualizar el cliente.")
@@ -524,6 +526,30 @@ def registro_orden(request):
                         detalle = "No se pudo actualizar el cliente."
                     messages.error(request, detalle)
                 return redirect("caja")
+
+            elif accion == "editar_vehiculo":
+                vehiculo_id = int(request.POST.get("vehiculo_id", 0))
+                res = requests.patch(
+                    f"{API_URL}/vehiculos/{vehiculo_id}",
+                    json={
+                        "cliente_id": int(request.POST.get("cliente_id")),
+                        "categoria_vehiculo_id": int(request.POST.get("categoria_vehiculo_id")),
+                        "placa": (request.POST.get("placa") or "").strip().upper(),
+                        "marca": (request.POST.get("marca") or "").strip(),
+                        "modelo": (request.POST.get("modelo") or "").strip(),
+                    },
+                    timeout=5,
+                )
+                if res.status_code == 200:
+                    messages.success(
+                        request, "Propietario y datos del vehículo actualizados correctamente."
+                    )
+                else:
+                    try:
+                        detalle = res.json().get("detail", "No se pudo actualizar el vehículo.")
+                    except Exception:
+                        detalle = "No se pudo actualizar el vehículo."
+                    messages.error(request, detalle)
 
             # 2. Acción para generar la orden completa y mandarla al Monitor
             elif accion == "generar_orden":
@@ -638,7 +664,8 @@ def registro_orden(request):
                 return redirect("monitor")
         except Exception as e:
             print(f"Error procesando orden en caja: {e}")
-            messages.error(request, "Error de conexión al procesar la solicitud.")
+            messages.error(
+                request, "Error de conexión al procesar la solicitud.")
             return redirect("caja")
 
     # Inicializar catálogos base si la BD recién se creó
@@ -704,7 +731,8 @@ def modulo_clientes(request):
                     timeout=5,
                 )
                 if res.status_code == 200:
-                    messages.success(request, "Cliente registrado correctamente.")
+                    messages.success(
+                        request, "Cliente registrado correctamente.")
                 else:
                     try:
                         detalle = res.json().get("detail", "No se pudo registrar el cliente.")
@@ -724,12 +752,37 @@ def modulo_clientes(request):
                     timeout=5,
                 )
                 if res.status_code == 200:
-                    messages.success(request, "Datos del cliente actualizados correctamente.")
+                    messages.success(
+                        request, "Datos del cliente actualizados correctamente.")
                 else:
                     try:
                         detalle = res.json().get("detail", "No se pudo actualizar el cliente.")
                     except Exception:
                         detalle = "No se pudo actualizar el cliente."
+                    messages.error(request, detalle)
+
+            elif accion == "editar_vehiculo":
+                vehiculo_id = int(request.POST.get("vehiculo_id", 0))
+                res = requests.patch(
+                    f"{API_URL}/vehiculos/{vehiculo_id}",
+                    json={
+                        "cliente_id": int(request.POST.get("cliente_id")),
+                        "categoria_vehiculo_id": int(request.POST.get("categoria_vehiculo_id")),
+                        "placa": (request.POST.get("placa") or "").strip().upper(),
+                        "marca": (request.POST.get("marca") or "").strip(),
+                        "modelo": (request.POST.get("modelo") or "").strip(),
+                    },
+                    timeout=5,
+                )
+                if res.status_code == 200:
+                    messages.success(
+                        request, "Propietario y datos del vehículo actualizados correctamente."
+                    )
+                else:
+                    try:
+                        detalle = res.json().get("detail", "No se pudo actualizar el vehículo.")
+                    except Exception:
+                        detalle = "No se pudo actualizar el vehículo."
                     messages.error(request, detalle)
         except Exception as e:
             print(f"Error en módulo de clientes: {e}")
@@ -744,7 +797,8 @@ def modulo_clientes(request):
     vehiculos_por_cliente = {}
     for v in vehiculos:
         cid = v.get("cliente_id")
-        v["categoria_nombre"] = cat_dict.get(v.get("categoria_vehiculo_id"), "Vehículo")
+        v["categoria_nombre"] = cat_dict.get(
+            v.get("categoria_vehiculo_id"), "Vehículo")
         vehiculos_por_cliente.setdefault(cid, []).append(v)
 
     for c in clientes:
@@ -1006,7 +1060,8 @@ def modulo_usuarios(request):
             elif accion == "editar_usuario":
                 uid = int(request.POST.get("usuario_id", 0))
                 rol_id = int(request.POST.get("rol_id", 3))
-                nombre_completo = (request.POST.get("nombre_completo") or "").strip()
+                nombre_completo = (request.POST.get(
+                    "nombre_completo") or "").strip()
                 correo = (request.POST.get("correo") or "").strip().lower()
                 password_nueva = (request.POST.get("password") or "").strip()
 
@@ -1033,7 +1088,8 @@ def modulo_usuarios(request):
                 if res.status_code == 200:
                     if uid == request.session.get("usuario_id"):
                         request.session["usuario_nombre"] = nombre_completo
-                    messages.success(request, "Datos del empleado actualizados correctamente.")
+                    messages.success(
+                        request, "Datos del empleado actualizados correctamente.")
                 else:
                     try:
                         detalle = res.json().get("detail", "No se pudo actualizar el usuario.")

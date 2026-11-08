@@ -58,9 +58,19 @@
                         <td>
                             <div class="d-flex flex-wrap gap-1">
                                 {% for v in c.vehiculos_registrados %}
-                                <span class="badge bg-light text-dark border px-2 py-1 fw-medium">
+                                <button type="button"
+                                        class="badge bg-light text-dark border px-2 py-1 fw-medium btn-editar-vehiculo"
+                                        style="cursor: pointer;"
+                                        title="Clic para cambiar de propietario o corregir datos del vehículo"
+                                        data-id="{{ v.id }}"
+                                        data-cliente="{{ c.id }}"
+                                        data-categoria="{{ v.categoria_vehiculo_id }}"
+                                        data-placa="{{ v.placa }}"
+                                        data-marca="{{ v.marca|default:'' }}"
+                                        data-modelo="{{ v.modelo|default:'' }}">
                                     <strong class="text-sprint">{{ v.placa }}</strong> · {{ v.marca }} {{ v.modelo }}
-                                </span>
+                                    <i class="bi bi-arrow-left-right text-muted ms-1"></i>
+                                </button>
                                 {% empty %}
                                 <span class="text-muted small">Sin vehículos</span>
                                 {% endfor %}
@@ -178,6 +188,69 @@
     </div>
 </div>
 
+<!-- MODAL 3: Reasignar Propietario o Corregir Vehículo (PATCH /vehiculos/{id}) -->
+<div class="modal fade" id="modalEditarVehiculo" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="editar_vehiculo">
+                <input type="hidden" name="vehiculo_id" id="vehEditId">
+                <div class="modal-header border-bottom py-3 px-4">
+                    <h6 class="modal-title fw-bold text-dark">Gestionar Vehículo / Cambiar Propietario</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-light border small text-muted py-2 px-3 mb-3">
+                        <i class="bi bi-info-circle text-primary me-1"></i>
+                        Puedes transferir este vehículo a otro cliente si cambió de dueño o si se asignó por error.
+                    </div>
+                    <div class="mb-3">
+                        <label class="label-sprint">Cliente Propietario</label>
+                        <select name="cliente_id" id="vehEditCliente" class="form-select" required>
+                            {% for cli in clientes %}
+                            <option value="{{ cli.id }}">{{ cli.nombre_completo }} ({{ cli.telefono|default:"Sin tel." }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="label-sprint">Placa</label>
+                            <div class="input-group input-sprint-container">
+                                <input type="text" name="placa" id="vehEditPlaca" class="form-control text-uppercase" required>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <label class="label-sprint">Categoría</label>
+                            <select name="categoria_vehiculo_id" id="vehEditCategoria" class="form-select" required>
+                                {% for cat in categorias %}
+                                <option value="{{ cat.id }}">{{ cat.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="label-sprint">Marca</label>
+                            <div class="input-group input-sprint-container">
+                                <input type="text" name="marca" id="vehEditMarca" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <label class="label-sprint">Modelo</label>
+                            <div class="input-group input-sprint-container">
+                                <input type="text" name="modelo" id="vehEditModelo" class="form-control" required>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top py-3 px-4">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary px-4">Guardar y Reasignar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
     const CLIENTES_DIR = [
         {% for c in clientes %}
@@ -288,6 +361,19 @@
                 errTel.classList.remove('d-none');
             }
         }
+    });
+    
+    document.querySelectorAll('.btn-editar-vehiculo').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.getElementById('vehEditId').value = this.dataset.id;
+            document.getElementById('vehEditCliente').value = this.dataset.cliente;
+            document.getElementById('vehEditCategoria').value = this.dataset.categoria;
+            document.getElementById('vehEditPlaca').value = this.dataset.placa;
+            document.getElementById('vehEditMarca').value = this.dataset.marca;
+            document.getElementById('vehEditModelo').value = this.dataset.modelo;
+            const modal = new bootstrap.Modal(document.getElementById('modalEditarVehiculo'));
+            modal.show();
+        });
     });
 </script>
 {% endblock %}
