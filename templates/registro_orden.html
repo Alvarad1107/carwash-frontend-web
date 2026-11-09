@@ -12,6 +12,16 @@
     {% endfor %}
 {% endif %}
 
+{% if patio_lleno %}
+<div class="alert alert-danger d-flex align-items-center justify-content-between flex-wrap gap-2 rounded-3 shadow-sm mb-4 border-0" role="alert">
+    <div>
+        <i class="bi bi-cone-striped me-2"></i>
+        <strong>Capacidad máxima alcanzada (6/6 bahías ocupadas):</strong> Todos los espacios de lavado están en uso. Finaliza una orden en el Monitor para habilitar nuevos ingresos.
+    </div>
+    <a href="{% url 'monitor' %}" class="btn btn-sm btn-danger px-3">Ir al Monitor</a>
+</div>
+{% endif %}
+
 <form method="POST" id="formGenerarOrden">
     {% csrf_token %}
     <input type="hidden" name="accion" value="generar_orden">
@@ -111,26 +121,30 @@
                     <div id="contenedorVehiculosCliente" class="d-flex flex-wrap gap-2"></div>
                 </div>
 
-                <!-- Inputs del Auto y Bahía -->
+                <!-- Inputs del Auto y Bahía Automática -->
                 <div class="row g-3 mb-4">
-                    <div class="col-md-7 text-start">
+                    <div class="col-md-6 text-start">
                         <label class="label-sprint">Placa del Vehículo</label>
-                        <div class="input-group input-sprint-container">
+                        <div class="input-group input-sprint-container" id="boxInputPlaca">
                             <span class="input-group-text"><i class="bi bi-credit-card-2-front"></i></span>
                             <input type="text" name="placa" id="inputPlaca" class="form-control text-uppercase" placeholder="P-123456" autocomplete="off" required>
                         </div>
+                        <small id="errPlacaEnLavado" class="text-danger fw-medium d-none mt-1 d-block"></small>
                     </div>
-                    <div class="col-md-5 text-start">
-                        <label class="label-sprint">Bahía Asignada</label>
-                        <select name="bahia_id" class="form-select" required>
-                            {% for b in bahias %}
-                            <option value="{{ b.id }}" {% if b.estado == 'Ocupada' %}disabled{% endif %}>
-                                {{ b.nombre }} ({{ b.estado }})
-                            </option>
-                            {% empty %}
-                            <option value="1">Bahía 1 (Disponible)</option>
-                            {% endfor %}
-                        </select>
+                    <div class="col-md-6 text-start">
+                        <label class="label-sprint">Bahía Asignada (1 a 6)</label>
+                        <input type="hidden" name="bahia_id" value="{{ proxima_bahia.id|default:0 }}">
+                        {% if not patio_lleno and proxima_bahia %}
+                        <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-3 border bg-light" style="min-height: 40px;">
+                            <i class="bi bi-check-circle-fill text-success"></i>
+                            <span class="fw-semibold text-dark small">Automática: {{ proxima_bahia.nombre }} <span class="text-muted fw-normal">({{ bahias_libres_count }}/6 libres)</span></span>
+                        </div>
+                        {% else %}
+                        <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-3 border border-danger bg-danger bg-opacity-10" style="min-height: 40px;">
+                            <i class="bi bi-slash-circle-fill text-danger"></i>
+                            <span class="fw-semibold text-danger small">Sin espacio (6/6 ocupadas)</span>
+                        </div>
+                        {% endif %}
                     </div>
                     <div class="col-6 text-start">
                         <label class="label-sprint">Marca</label>
@@ -184,7 +198,12 @@
                     <div>
                         <span class="d-block text-uppercase" style="font-size: 0.7rem; color: #94a3b8; letter-spacing: 0.05em;">Vehículo</span>
                         <span class="fw-semibold text-white d-block" id="resumenAutoTexto">Vehículo ({{ categorias.0.nombre|default:"Sedán" }})</span>
-                        <span class="small" style="color: #cbd5e1;" id="resumenPlacaTexto">Placa: ---</span>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <span class="small" style="color: #cbd5e1;" id="resumenPlacaTexto">Placa: ---</span>
+                            <span class="badge {% if patio_lleno %}bg-danger{% else %}bg-success bg-opacity-25 text-white border border-success border-opacity-50{% endif %}" style="font-size: 0.72rem;">
+                                {% if not patio_lleno and proxima_bahia %}{{ proxima_bahia.nombre }}{% else %}Sin bahía{% endif %}
+                            </span>
+                        </div>
                     </div>
                 </div>
 
@@ -213,7 +232,7 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-primary w-100 py-3 d-flex justify-content-center align-items-center gap-2">
+                <button type="submit" id="btnGenerarOrden" class="btn btn-primary w-100 py-3 d-flex justify-content-center align-items-center gap-2" {% if patio_lleno %}disabled{% endif %}>
                     <span>Generar Orden de Lavado</span>
                     <i class="bi bi-arrow-right"></i>
                 </button>
@@ -324,6 +343,8 @@
         {% endfor %}
     ];
 
+    const PATIO_LLENO = {{ patio_lleno|yesno:"true,false" }};
+
     const VEHICULOS_REGISTRADOS = [
         {% for v in vehiculos %}
         {
@@ -332,10 +353,39 @@
             categoria_vehiculo_id: {{ v.categoria_vehiculo_id }},
             placa: "{{ v.placa|default:''|upper|escapejs }}",
             marca: "{{ v.marca|default:''|escapejs }}",
-            modelo: "{{ v.modelo|default:''|escapejs }}"
+            modelo: "{{ v.modelo|default:''|escapejs }}",
+            en_lavado: {{ v.en_lavado|yesno:"true,false" }},
+            bahia_activa: "{{ v.bahia_activa }}",
+            estado_activo: "{{ v.estado_activo|escapejs }}"
         }{% if not forloop.last %},{% endif %}
         {% endfor %}
     ];
+
+    function verificarPlacaEnLavado() {
+        const placaInput = document.getElementById('inputPlaca');
+        const boxPlaca = document.getElementById('boxInputPlaca');
+        const errPlaca = document.getElementById('errPlacaEnLavado');
+        const btnGenerar = document.getElementById('btnGenerarOrden');
+        if (!placaInput || !boxPlaca || !errPlaca || !btnGenerar) return true;
+
+        const placaActual = placaInput.value.trim().toUpperCase();
+        const vehiculoEnLavado = placaActual.length > 0
+            ? VEHICULOS_REGISTRADOS.find(v => v.placa === placaActual && v.en_lavado === true)
+            : null;
+
+        if (vehiculoEnLavado) {
+            boxPlaca.classList.add('input-invalid');
+            errPlaca.innerText = `Este vehículo ya se está lavando en Bahía ${vehiculoEnLavado.bahia_activa} (Estado: ${vehiculoEnLavado.estado_activo}). Finalice su orden actual antes de crear otra.`;
+            errPlaca.classList.remove('d-none');
+            btnGenerar.disabled = true;
+            return false;
+        } else {
+            boxPlaca.classList.remove('input-invalid');
+            errPlaca.classList.add('d-none');
+            btnGenerar.disabled = PATIO_LLENO;
+            return !PATIO_LLENO;
+        }
+    }
 
     const primeraTarjeta = document.querySelector('.tarjeta-categoria');
     let categoriaActualNombre = primeraTarjeta ? primeraTarjeta.dataset.nombre : "{{ categorias.0.nombre|default:'Sedán' }}";
@@ -376,13 +426,18 @@
         const autosCliente = VEHICULOS_REGISTRADOS.filter(v => v.cliente_id === parseInt(clienteId));
         contenedor.innerHTML = '';
 
-        autosCliente.forEach((v, idx) => {
+        const primerAutoLibre = autosCliente.find(v => !v.en_lavado) || null;
+
+        autosCliente.forEach((v) => {
             const btn = document.createElement('button');
             btn.type = 'button';
-            const esActivo = placaActiva ? (v.placa === placaActiva.toUpperCase()) : (autoRellenarPrimero && idx === 0);
+            const esActivo = placaActiva
+                ? (v.placa === placaActiva.toUpperCase())
+                : (autoRellenarPrimero && primerAutoLibre && v.id === primerAutoLibre.id);
             btn.className = 'chip-vehiculo-cliente' + (esActivo ? ' active' : '');
             const desc = `${v.marca} ${v.modelo}`.trim() || 'Vehículo';
-            btn.innerHTML = `<i class="bi bi-car-front me-1"></i>${v.placa} • ${desc}`;
+            const badgeLavado = v.en_lavado ? ` <span class="text-danger fw-bold">[En Bahía ${v.bahia_activa}]</span>` : '';
+            btn.innerHTML = `<i class="bi bi-car-front me-1"></i>${v.placa} • ${desc}${badgeLavado}`;
             btn.addEventListener('click', function() {
                 document.querySelectorAll('.chip-vehiculo-cliente').forEach(c => c.classList.remove('active'));
                 this.classList.add('active');
@@ -391,21 +446,16 @@
                 document.getElementById('inputModelo').value = v.modelo;
                 document.getElementById('avisoAutocompletadoPlaca').classList.add('d-none');
                 seleccionarTarjetaCategoriaPorId(v.categoria_vehiculo_id);
+                verificarPlacaEnLavado();
                 actualizarResumen();
             });
             contenedor.appendChild(btn);
-
-            if (autoRellenarPrimero && idx === 0 && !placaActiva) {
-                document.getElementById('inputPlaca').value = v.placa;
-                document.getElementById('inputMarca').value = v.marca;
-                document.getElementById('inputModelo').value = v.modelo;
-                seleccionarTarjetaCategoriaPorId(v.categoria_vehiculo_id);
-            }
         });
 
+        const activarNuevo = !placaActiva && (autosCliente.length === 0 || (autoRellenarPrimero && !primerAutoLibre));
         const btnNuevo = document.createElement('button');
         btnNuevo.type = 'button';
-        btnNuevo.className = 'chip-vehiculo-cliente' + (autosCliente.length === 0 ? ' active' : '');
+        btnNuevo.className = 'chip-vehiculo-cliente' + (activarNuevo ? ' active' : '');
         btnNuevo.innerHTML = `<i class="bi bi-plus-lg me-1"></i>Nuevo vehículo`;
         btnNuevo.addEventListener('click', function() {
             document.querySelectorAll('.chip-vehiculo-cliente').forEach(c => c.classList.remove('active'));
@@ -415,15 +465,24 @@
             document.getElementById('inputModelo').value = '';
             document.getElementById('avisoAutocompletadoPlaca').classList.add('d-none');
             document.getElementById('inputPlaca').focus();
+            verificarPlacaEnLavado();
             actualizarResumen();
         });
         contenedor.appendChild(btnNuevo);
 
-        if (autoRellenarPrimero && autosCliente.length === 0) {
-            document.getElementById('inputPlaca').value = '';
-            document.getElementById('inputMarca').value = '';
-            document.getElementById('inputModelo').value = '';
+        if (autoRellenarPrimero && !placaActiva) {
+            if (primerAutoLibre) {
+                document.getElementById('inputPlaca').value = primerAutoLibre.placa;
+                document.getElementById('inputMarca').value = primerAutoLibre.marca;
+                document.getElementById('inputModelo').value = primerAutoLibre.modelo;
+                seleccionarTarjetaCategoriaPorId(primerAutoLibre.categoria_vehiculo_id);
+            } else {
+                document.getElementById('inputPlaca').value = '';
+                document.getElementById('inputMarca').value = '';
+                document.getElementById('inputModelo').value = '';
+            }
         }
+        verificarPlacaEnLavado();
         actualizarResumen();
     }
 
@@ -484,6 +543,7 @@
         } else {
             aviso.classList.add('d-none');
         }
+        verificarPlacaEnLavado();
         actualizarResumen();
     });
 
@@ -617,6 +677,9 @@
     // 6. Confirmación SweetAlert2 al Generar Orden
     document.getElementById('formGenerarOrden').addEventListener('submit', function(e) {
         e.preventDefault();
+        if (!verificarPlacaEnLavado()) {
+            return false;
+        }
         const form = this;
         const cliente = document.getElementById('resumenCliente').innerText;
         const vehiculo = document.getElementById('resumenAutoTexto').innerText;

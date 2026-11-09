@@ -479,6 +479,58 @@ def catalogos(request):
 
 @cajero_o_admin
 def registro_orden(request):
+    ordenes_todas = obtener_json("/ordenes/")
+    bahias_raw = obtener_json("/bahias/")
+
+    ordenes_activas = [
+        o for o in ordenes_todas if o.get("estado") in ["Pendiente", "En proceso"]
+    ]
+    bahias_ocupadas_ids = {
+        int(o.get("bahia_id")) for o in ordenes_activas if o.get("bahia_id")
+    }
+    vehiculos_en_lavado_map = {
+        int(o.get("vehiculo_id")): {
+            "orden_id": o.get("id"),
+            "bahia_id": o.get("bahia_id"),
+            "estado": o.get("estado"),
+        }
+        for o in ordenes_activas
+        if o.get("vehiculo_id")
+    }
+
+    bahias_api_dict = {
+        int(b.get("id", 0)): b for b in bahias_raw if b.get("id")
+    }
+    bahias = []
+    for i in range(1, 7):
+        b_info = bahias_api_dict.get(i, {})
+        estado_api = b_info.get("estado", "Disponible")
+        if i in bahias_ocupadas_ids:
+            estado_real = "Ocupada"
+        elif estado_api == "Mantenimiento":
+            estado_real = "Mantenimiento"
+        else:
+            estado_real = "Disponible"
+        bahias.append({
+            "id": i,
+            "nombre": b_info.get("nombre") or f"Bahía {i}",
+            "estado": estado_real,
+        })
+
+    proxima_bahia = next(
+        (
+            b
+            for b in bahias
+            if b["id"] not in bahias_ocupadas_ids
+            and b["estado"] != "Mantenimiento"
+        ),
+        None,
+    )
+    bahias_libres_count = sum(
+        1 for b in bahias if b["estado"] == "Disponible"
+    )
+    patio_lleno = len(bahias_ocupadas_ids) >= 6 or (proxima_bahia is None)
+
     if request.method == "POST":
         accion = request.POST.get("accion")
         try:
@@ -553,10 +605,17 @@ def registro_orden(request):
 
             # 2. Acción para generar la orden completa y mandarla al Monitor
             elif accion == "generar_orden":
+                if len(bahias_ocupadas_ids) >= 6 or proxima_bahia is None:
+                    messages.error(
+                        request,
+                        "Capacidad máxima alcanzada: Las 6 bahías están ocupadas en este momento. Debes finalizar un lavado en el Monitor antes de registrar otro vehículo.",
+                    )
+                    return redirect("caja")
+
                 cliente_id = int(request.POST.get("cliente_id", 1))
                 categoria_id = int(request.POST.get(
                     "categoria_vehiculo_id", 1))
-                bahia_id = int(request.POST.get("bahia_id", 1))
+                bahia_id = proxima_bahia["id"]
                 placa = request.POST.get("placa", "").strip().upper()
                 marca = request.POST.get("marca", "").strip()
                 modelo = request.POST.get("modelo", "").strip()
@@ -577,6 +636,14 @@ def registro_orden(request):
                 vehiculo_id = None
                 if vehiculo_existente:
                     vehiculo_id = vehiculo_existente.get("id")
+                    if int(vehiculo_id) in vehiculos_en_lavado_map:
+                        info = vehiculos_en_lavado_map[int(vehiculo_id)]
+                        messages.error(
+                            request,
+                            f"Operación bloqueada: El vehículo con placa {placa} ya tiene una orden activa en Bahía {info['bahia_id']} ({info['estado']}). Debe finalizarse antes de registrar otra orden.",
+                        )
+                        return redirect("caja")
+
                     # Si el vehículo ya existe y se modificaron marca, modelo, categoría o cliente, sincronizar vía PATCH
                     if (
                         (vehiculo_existente.get("marca") or "") != marca
@@ -677,7 +744,12 @@ def registro_orden(request):
     categorias = obtener_json("/categorias-vehiculos/")
     adicionales = obtener_json("/servicios/adicionales")
     matriz = obtener_json("/servicios/matriz-precios")
-    bahias = obtener_json("/bahias/")
+
+    for v in vehiculos:
+        info_act = vehiculos_en_lavado_map.get(v.get("id"))
+        v["en_lavado"] = bool(info_act)
+        v["bahia_activa"] = info_act["bahia_id"] if info_act else ""
+        v["estado_activo"] = info_act["estado"] if info_act else ""
 
     if not categorias:
         categorias = [
@@ -711,6 +783,9 @@ def registro_orden(request):
         "categorias": categorias[:5],
         "adicionales": adicionales,
         "bahias": bahias,
+        "proxima_bahia": proxima_bahia,
+        "bahias_libres_count": bahias_libres_count,
+        "patio_lleno": patio_lleno,
     }
     return render(request, "registro_orden.html", contexto)
 
@@ -847,6 +922,18 @@ def modulo_finanzas(request):
 
             elif accion == "asignar_operarios":
                 orden_id_sel = int(request.POST.get("orden_id", 0))
+                orden_sel = next(
+                    (o for o in ordenes_todas if o.get("id") == orden_id_sel),
+                    None,
+                )
+
+                # PROHIBIDO distribuir comisión antes de terminar el lavado
+                if not orden_sel or orden_sel.get("estado", "Pendiente") in ["Pendiente", "En proceso"]:
+                    messages.error(
+                        request,
+                        "Operación bloqueada: No se puede distribuir comisión a un vehículo cuyo lavado no ha sido Terminado.",
+                    )
+                    return redirect("finanzas")
 
                 # CANDADO DE INMUTABILIDAD: Impedir que una comisión ya repartida se vuelva a editar
                 if orden_id_sel in ordenes_comisionadas_ids:
@@ -890,20 +977,45 @@ def modulo_finanzas(request):
     usr_dict = {u["id"]: u["nombre_completo"] for u in usuarios}
     rol_por_usr = {u["id"]: u.get("rol_id") for u in usuarios}
 
-    # Filtrar únicamente las órdenes del día de hoy
-    ordenes_hoy = [o for o in ordenes_todas if es_fecha_de_hoy(
-        o.get("created_at", ""))]
-    ordenes_hoy_ids = {o.get("id") for o in ordenes_hoy}
-
     ordenes_pagadas_ids = {p.get("orden_id") for p in pagos_todos}
+    pagos_hoy_orden_ids = {
+        p.get("orden_id")
+        for p in pagos_todos
+        if es_fecha_de_hoy(p.get("fecha_pago", ""))
+    }
+
+    # Incluir todas las órdenes de hoy MÁS cualquier orden de días anteriores que siga abierta
+    ordenes_turno = []
+    for o in ordenes_todas:
+        oid = o.get("id")
+        es_de_hoy = es_fecha_de_hoy(o.get("created_at", ""))
+        estado_o = o.get("estado", "Pendiente")
+        sigue_abierta = (
+            estado_o in ["Pendiente", "En proceso"]
+            or (oid not in ordenes_pagadas_ids)
+            or (oid not in ordenes_comisionadas_ids)
+        )
+        if es_de_hoy or sigue_abierta or (oid in pagos_hoy_orden_ids):
+            ordenes_turno.append(o)
+
+    ordenes_turno_ids = {o.get("id") for o in ordenes_turno}
+    ordenes_hoy_ids = {
+        o.get("id")
+        for o in ordenes_todas
+        if es_fecha_de_hoy(o.get("created_at", ""))
+    }
 
     ordenes_info = []
-    for o in ordenes_hoy:
+    for o in ordenes_turno:
         oid = o.get("id")
+        es_de_hoy = oid in ordenes_hoy_ids
         v = veh_dict.get(o.get("vehiculo_id"), {})
         c = cli_dict.get(v.get("cliente_id"), {})
         cat = cat_dict.get(v.get("categoria_vehiculo_id"), {})
         estado_actual = o.get("estado", "Pendiente")
+        cobrable = estado_actual not in ["Pendiente", "En proceso"]
+        ya_pagada = oid in ordenes_pagadas_ids
+        ya_comisionada = oid in ordenes_comisionadas_ids
 
         ordenes_info.append({
             "id": oid,
@@ -914,9 +1026,11 @@ def modulo_finanzas(request):
             "comision_base": float(cat.get("comision_base", 2.50)),
             "total_pagar": float(o.get("total_pagar", 0)),
             "estado": estado_actual,
-            "cobrable": estado_actual not in ["Pendiente", "En proceso"],
-            "ya_pagada": oid in ordenes_pagadas_ids,
-            "ya_comisionada": oid in ordenes_comisionadas_ids,
+            "es_rezagada": not es_de_hoy,
+            "cobrable": cobrable,
+            "comisionable": cobrable and (not ya_comisionada),
+            "ya_pagada": ya_pagada,
+            "ya_comisionada": ya_comisionada,
         })
 
     ord_info_dict = {oi["id"]: oi for oi in ordenes_info}
@@ -958,8 +1072,8 @@ def modulo_finanzas(request):
     total_comisiones = 0.0
 
     for com in comisiones_todas:
-        # Mostrar únicamente las comisiones de las órdenes del día de hoy y de rol Operario (rol_id == 3)
-        if com.get("orden_id") not in ordenes_hoy_ids:
+        # Mostrar las comisiones de las órdenes del turno actual y de rol Operario (rol_id == 3)
+        if com.get("orden_id") not in ordenes_turno_ids:
             continue
         uid = com.get("usuario_id")
         if rol_por_usr.get(uid) != 3:
@@ -1006,13 +1120,25 @@ def modulo_finanzas(request):
         {"categoria": k, "cantidad": v} for k, v in conteo_por_categoria.items()
     ]
 
+    ordenes_en_patio = sum(
+        1 for oi in ordenes_info if oi["estado"] in ["Pendiente", "En proceso"]
+    )
+    ordenes_listas_para_cobrar = sum(
+        1 for oi in ordenes_info if oi["cobrable"] and not oi["ya_pagada"]
+    )
     comisiones_sin_distribuir = sum(
+        1 for oi in ordenes_info if oi["cobrable"] and not oi["ya_comisionada"]
+    )
+    comisiones_pendientes_totales = sum(
         1 for oi in ordenes_info if not oi["ya_comisionada"]
     )
 
     contexto = {
         "ordenes": ordenes_info,
+        "ordenes_en_patio": ordenes_en_patio,
+        "ordenes_listas_para_cobrar": ordenes_listas_para_cobrar,
         "comisiones_sin_distribuir": comisiones_sin_distribuir,
+        "comisiones_pendientes_totales": comisiones_pendientes_totales,
         "usuarios": personal_caja,
         "operarios": operarios_activos,
         "pagos": pagos_lista,
@@ -1032,15 +1158,25 @@ def modulo_finanzas(request):
 def modulo_usuarios(request):
     usuarios = obtener_json("/finanzas/usuarios")
     roles = obtener_json("/finanzas/roles")
+    mi_id = int(request.session.get("usuario_id", 0))
+    soy_admin_principal = (mi_id == 1)
 
     if request.method == "POST":
         accion = request.POST.get("accion")
         try:
             if accion == "crear_usuario":
+                rol_nuevo = int(request.POST.get("rol_id", 3))
+                if rol_nuevo == 1 and not soy_admin_principal:
+                    messages.error(
+                        request,
+                        "Operación bloqueada: Solo el Administrador Principal puede crear cuentas con rol de Administrador.",
+                    )
+                    return redirect("usuarios")
+
                 res = requests.post(
                     f"{API_URL}/finanzas/usuarios",
                     json={
-                        "rol_id": int(request.POST.get("rol_id", 3)),
+                        "rol_id": rol_nuevo,
                         "nombre_completo": (request.POST.get("nombre_completo") or "").strip(),
                         "correo": (request.POST.get("correo") or "").strip().lower(),
                         "password": request.POST.get("password", "sprintwash123"),
@@ -1064,6 +1200,28 @@ def modulo_usuarios(request):
                     "nombre_completo") or "").strip()
                 correo = (request.POST.get("correo") or "").strip().lower()
                 password_nueva = (request.POST.get("password") or "").strip()
+
+                usuario_objetivo = next(
+                    (u for u in usuarios if u["id"] == uid), None
+                )
+
+                if not soy_admin_principal:
+                    if uid == 1 or (
+                        usuario_objetivo
+                        and usuario_objetivo.get("rol_id") == 1
+                        and uid != mi_id
+                    ):
+                        messages.error(
+                            request,
+                            "Operación bloqueada: Solo el Administrador Principal puede modificar datos o contraseñas de otros Administradores.",
+                        )
+                        return redirect("usuarios")
+                    if rol_id == 1 and uid != mi_id:
+                        messages.error(
+                            request,
+                            "Operación bloqueada: Solo el Administrador Principal puede otorgar el rol de Administrador.",
+                        )
+                        return redirect("usuarios")
 
                 if uid == 1 and rol_id != 1:
                     messages.error(
@@ -1099,7 +1257,6 @@ def modulo_usuarios(request):
 
             elif accion == "alternar_estado":
                 uid = int(request.POST.get("usuario_id", 0))
-                mi_id = int(request.session.get("usuario_id", 0))
                 usuario_objetivo = next(
                     (u for u in usuarios if u["id"] == uid), None)
 
@@ -1113,6 +1270,14 @@ def modulo_usuarios(request):
                 if uid == 1:
                     messages.error(
                         request, "Operación bloqueada: La cuenta del Administrador Principal no puede ser desactivada.")
+                    return redirect("usuarios")
+
+                # 1.C Solo el Administrador Principal puede activar/desactivar a otros Administradores
+                if usuario_objetivo and usuario_objetivo.get("rol_id") == 1 and not soy_admin_principal:
+                    messages.error(
+                        request,
+                        "Operación bloqueada: Solo el Administrador Principal puede activar o desactivar a otros Administradores.",
+                    )
                     return redirect("usuarios")
 
                 if usuario_objetivo and usuario_objetivo.get("estado") == 1:
@@ -1150,10 +1315,26 @@ def modulo_usuarios(request):
     roles_dict = {r["id"]: ("ADMINISTRADOR" if r["id"]
                             == 1 else r["nombre"]) for r in roles}
     for u in usuarios:
-        u["rol_nombre"] = roles_dict.get(
-            u.get("rol_id"), "OPERARIO / SUPERVISOR")
+        uid = u.get("id")
+        rol_u = u.get("rol_id")
+        u["rol_nombre"] = roles_dict.get(rol_u, "OPERARIO / SUPERVISOR")
+        u["puede_editar"] = (
+            soy_admin_principal or uid == mi_id or rol_u in [2, 3]
+        )
+        u["puede_alternar_estado"] = (
+            uid != mi_id
+            and uid != 1
+            and (soy_admin_principal or rol_u in [2, 3])
+        )
 
-    return render(request, "usuarios.html", {"usuarios": usuarios})
+    return render(
+        request,
+        "usuarios.html",
+        {
+            "usuarios": usuarios,
+            "soy_admin_principal": soy_admin_principal,
+        },
+    )
 
 
 @login_requerido

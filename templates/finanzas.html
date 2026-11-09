@@ -15,7 +15,7 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <span class="text-muted small">Resumen contable del turno actual y liquidación de comisiones a destajo</span>
     <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-2" onclick="imprimirReporteFinanciero()">
-        <i class="bi {% if comisiones_sin_distribuir > 0 %}bi-lock text-secondary{% else %}bi-printer{% endif %} me-1"></i>Imprimir Corte de Caja y Planilla
+        <i class="bi {% if ordenes_en_patio > 0 or ordenes_listas_para_cobrar > 0 or comisiones_pendientes_totales > 0 %}bi-lock text-secondary{% else %}bi-printer{% endif %} me-1"></i>Imprimir Corte de Caja y Planilla
     </button>
 </div>
 
@@ -73,8 +73,13 @@
     <!-- COLUMNA IZQUIERDA: Registro de Cobros Diarios -->
     <div class="col-lg-6">
         <div class="card card-sprint h-100">
-            <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center">
-                <h6 class="fw-bold text-dark mb-0">Registro de Cobros Diarios</h6>
+            <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <span class="d-block fw-bold text-uppercase mb-1" style="font-size: 0.72rem; letter-spacing: 0.04em; {% if ordenes_listas_para_cobrar > 0 or ordenes_en_patio > 0 %}color: #d97706;{% else %}color: #16a34a;{% endif %}">
+                        <i class="bi {% if ordenes_listas_para_cobrar > 0 or ordenes_en_patio > 0 %}bi-exclamation-circle-fill{% else %}bi-check-circle-fill{% endif %} me-1"></i>Órdenes listas para cobrar: {{ ordenes_listas_para_cobrar|default:0 }}{% if ordenes_en_patio > 0 %}<span class="text-danger ms-1">(En patio: {{ ordenes_en_patio }})</span>{% endif %}
+                    </span>
+                    <h6 class="fw-bold text-dark mb-0">Registro de Cobros Diarios</h6>
+                </div>
                 <button class="btn btn-primary btn-sm px-3 py-2" data-bs-toggle="modal" data-bs-target="#modalRegistrarPago">
                     <i class="bi bi-plus-lg me-1"></i>Registrar Cobro
                 </button>
@@ -244,7 +249,7 @@
                         <select name="orden_id" id="selectOrdenPago" class="form-select" required>
                             {% for o in ordenes %}
                             <option value="{{ o.id }}" data-total="{{ o.total_pagar }}" {% if not o.cobrable or o.ya_pagada %}disabled{% endif %}>
-                                Orden #{{ o.id_formateado }} - {{ o.vehiculo_info }} (${{ o.total_pagar|floatformat:2 }})
+                                Orden #{{ o.id_formateado }}{% if o.es_rezagada %} [REZAGADA]{% endif %} - {{ o.vehiculo_info }} (${{ o.total_pagar|floatformat:2 }})
                                 {% if o.ya_pagada %}[YA PAGADA]{% elif not o.cobrable %}[{{ o.estado|upper }} - BLOQUEADO]{% else %}[LISTO PARA COBRO]{% endif %}
                             </option>
                             {% endfor %}
@@ -299,12 +304,12 @@
                         Una vez distribuida la comisión, la orden quedará <strong>cerrada</strong> en planilla.
                     </div>
                     <div class="mb-3">
-                        <label class="label-sprint">Orden de Lavado (Turno de Hoy)</label>
+                        <label class="label-sprint">Orden de Lavado (Turno Actual)</label>
                         <select name="orden_id" id="selectOrdenComision" class="form-select" required>
                             {% for o in ordenes %}
-                            <option value="{{ o.id }}" {% if o.ya_comisionada %}disabled{% endif %}>
-                                Orden #{{ o.id_formateado }} - {{ o.vehiculo_info }} (Base: ${{ o.comision_base|floatformat:2 }})
-                                {% if o.ya_comisionada %}[COMISIÓN CERRADA]{% else %}[DISPONIBLE]{% endif %}
+                            <option value="{{ o.id }}" {% if not o.comisionable %}disabled{% endif %}>
+                                Orden #{{ o.id_formateado }}{% if o.es_rezagada %} [REZAGADA]{% endif %} - {{ o.vehiculo_info }} (Base: ${{ o.comision_base|floatformat:2 }})
+                                {% if o.ya_comisionada %}[COMISIÓN CERRADA]{% elif not o.cobrable %}[{{ o.estado|upper }} - SIN TERMINAR]{% else %}[DISPONIBLE]{% endif %}
                             </option>
                             {% empty %}
                             <option value="" disabled selected>No hay órdenes registradas en el turno de hoy</option>
@@ -569,23 +574,35 @@
     }
 
     function imprimirReporteFinanciero() {
-        const comisionesSinCerrar = parseInt("{{ comisiones_sin_distribuir|default:0 }}", 10);
-        if (comisionesSinCerrar > 0) {
+        const enPatio = parseInt("{{ ordenes_en_patio|default:0 }}", 10);
+        const porCobrar = parseInt("{{ ordenes_listas_para_cobrar|default:0 }}", 10);
+        const comisionesPendientes = parseInt("{{ comisiones_pendientes_totales|default:0 }}", 10);
+
+        if (enPatio > 0 || porCobrar > 0 || comisionesPendientes > 0) {
+            let itemsPendientes = '';
+            if (enPatio > 0) {
+                itemsPendientes += `<li class="mb-1"><strong>${enPatio}</strong> vehículo(s) en patio sin terminar lavado.</li>`;
+            }
+            if (porCobrar > 0) {
+                itemsPendientes += `<li class="mb-1"><strong>${porCobrar}</strong> orden(es) terminada(s) pendiente(s) de cobro en caja.</li>`;
+            }
+            if (comisionesPendientes > 0) {
+                itemsPendientes += `<li class="mb-1"><strong>${comisionesPendientes}</strong> orden(es) pendiente(s) por cerrar comisión en planilla.</li>`;
+            }
+
             Swal.fire({
                 icon: 'warning',
-                title: 'Comisiones pendientes por cerrar',
-                html: `Tienes <strong>${comisionesSinCerrar}</strong> comisión(es) disponible(s) para distribuir.<br><span class="text-muted small">Debes asignar y cerrar todas las comisiones de las órdenes del turno antes de imprimir el Corte de Caja y Planilla.</span>`,
-                showCancelButton: true,
+                title: 'No se puede cerrar Caja ni Planilla',
+                html: `
+                    <div class="text-start small bg-light p-3 rounded-3 border mt-2">
+                        <p class="fw-semibold text-dark mb-2">Para imprimir el corte diario debes completar primero:</p>
+                        <ul class="mb-0 ps-3 text-secondary">
+                            ${itemsPendientes}
+                        </ul>
+                    </div>
+                `,
                 confirmButtonColor: '#2563eb',
-                cancelButtonColor: '#64748b',
-                confirmButtonText: 'Asignar Lavado ahora',
-                cancelButtonText: 'Cancelar',
-                reverseButtons: true
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    const modalComision = new bootstrap.Modal(document.getElementById('modalAsignarComision'));
-                    modalComision.show();
-                }
+                confirmButtonText: 'Entendido'
             });
             return;
         }
