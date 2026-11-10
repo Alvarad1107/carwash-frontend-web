@@ -735,11 +735,11 @@ def registro_orden(request):
                         )
                         return redirect("caja")
 
-                    # Actualizar marca, modelo, color, categoría y último cliente que trajo el vehículo
+                    # Actualizar marca, modelo, color y categoría conservando el cliente dueño original de la placa
                     requests.patch(
                         f"{API_URL}/vehiculos/{vehiculo_id}",
                         json={
-                            "cliente_id": cliente_id,
+                            "cliente_id": vehiculo_existente.get("cliente_id") or cliente_id,
                             "categoria_vehiculo_id": categoria_id,
                             "placa": placa,
                             "marca": marca,

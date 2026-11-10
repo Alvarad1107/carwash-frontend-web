@@ -138,22 +138,12 @@
                     </select>
                 </div>
 
-                <!-- Placas Registradas en Catálogo (Accesos Rápidos por Placa + Nueva Placa) -->
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="kpi-label mb-0">Placas Registradas (Acceso Rápido)</span>
-                        <small id="avisoAutocompletadoPlaca" class="text-primary fw-semibold d-none" style="font-size: 0.75rem;">
-                            <i class="bi bi-magic me-1"></i>Autocompletado por placa
-                        </small>
-                    </div>
-                    <div id="contenedorVehiculosCliente" class="d-flex flex-wrap gap-2"></div>
-                </div>
-
                 <!-- Inputs del Auto y Bahía Automática -->
                 <div class="row g-3 mb-4">
                     <div class="col-md-6 text-start">
                         <label class="label-sprint">Placa del Vehículo</label>
-                        <div class="input-group input-sprint-container" id="boxInputPlaca">
+                        <div class="position-relative">
+                            <div class="input-group input-sprint-container" id="boxInputPlaca">
                             <select id="selectPrefijoPlaca" class="form-select fw-bold text-dark bg-light border-0" style="max-width: 92px;" aria-label="Prefijo de placa">
                                 <option value="P" selected>P</option>
                                 <option value="M">M</option>
@@ -177,6 +167,9 @@
                             </select>
                             <span class="input-group-text px-1 text-muted fw-bold">-</span>
                             <input type="text" id="inputCuerpoPlaca" class="form-control text-uppercase" placeholder="123456" maxlength="6" autocomplete="off" required>
+                            </div>
+                            <!-- Menú desplegable de autocompletado de placas registradas -->
+                            <div id="dropdownPlacasPOS" class="list-group position-absolute w-100 shadow-sm d-none" style="z-index: 1050; max-height: 200px; overflow-y: auto;"></div>
                         </div>
                         <input type="hidden" name="placa" id="inputPlaca">
                         <small id="errPlacaEnLavado" class="text-danger fw-medium d-none mt-1 d-block"></small>
@@ -400,14 +393,14 @@
     ];
 
     const MATRIZ_PRECIOS = [
-    {% for m in matriz %}
-    {
-        categoria_vehiculo_id: {{ m.categoria_vehiculo_id }},
-        servicio_base_id: {{ m.servicio_base_id }},
-        precio_base: parseFloat("{{ m.precio_base }}".replace(',', '.')) || 0
-    }{% if not forloop.last %},{% endif %}
-    {% endfor %}
-];
+        {% for m in matriz %}
+        {
+            categoria_vehiculo_id: {{ m.categoria_vehiculo_id }},
+            servicio_base_id: {{ m.servicio_base_id }},
+            precio_base: parseFloat("{{ m.precio_base }}".replace(',', '.')) || 0
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
 
     const PATIO_LLENO = {{ patio_lleno|yesno:"true,false" }};
     const RECEPCION_ABIERTA = {{ recepcion_abierta|yesno:"true,false" }};
@@ -513,7 +506,6 @@
     const primeraTarjeta = document.querySelector('.tarjeta-categoria');
     let categoriaActualNombre = primeraTarjeta ? primeraTarjeta.dataset.nombre : "{{ categorias.0.nombre|default:'' }}";
     let precioBaseActual = primeraTarjeta ? (parseFloat(primeraTarjeta.dataset.precio) || 0.00) : 0.00;
-    let clienteFijadoManualmente = false;
 
     function seleccionarTarjetaCategoriaPorId(catId) {
         actualizarEtiquetasPreciosCategorias();
@@ -548,104 +540,98 @@
         document.getElementById('resumenCliente').innerText = item.dataset.nombre;
     }
 
-    function renderizarChipsVehiculosCliente(clienteId, placaActiva = null, autoRellenarPrimero = false) {
-        const contenedor = document.getElementById('contenedorVehiculosCliente');
-        const cidNum = parseInt(clienteId || '0');
-        // Ordenar placas mostrando primero las que este cliente ha traído antes y luego el resto del catálogo
-        const autosDelCliente = VEHICULOS_REGISTRADOS.filter(v => v.cliente_id === cidNum);
-        const otrosAutos = VEHICULOS_REGISTRADOS.filter(v => v.cliente_id !== cidNum);
-        const listaPlacas = [...autosDelCliente, ...otrosAutos];
-        contenedor.innerHTML = '';
-
-        const primerAutoLibre = autosDelCliente.find(v => !v.en_lavado) || listaPlacas.find(v => !v.en_lavado) || null;
-        const placaPrevia = sincronizarPlacaCompletaPOS();
-        const placaSeleccionada = placaActiva ? placaActiva.toUpperCase() : (placaPrevia || (autoRellenarPrimero && primerAutoLibre ? primerAutoLibre.placa : ''));
-
-        listaPlacas.forEach((v) => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            const esActivo = placaSeleccionada && (v.placa === placaSeleccionada);
-            btn.className = 'chip-vehiculo-cliente' + (esActivo ? ' active' : '');
-            const desc = `${v.marca} ${v.modelo}`.trim() || 'Vehículo';
-            const colorTxt = v.color ? ` (${v.color})` : '';
-            const badgeLavado = v.en_lavado ? ` <span class="text-danger fw-bold">[En Bahía ${v.bahia_activa}]</span>` : '';
-            btn.innerHTML = `<i class="bi bi-car-front me-1"></i>${v.placa} • ${desc}${colorTxt}${badgeLavado}`;
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('.chip-vehiculo-cliente').forEach(c => c.classList.remove('active'));
-                this.classList.add('active');
-                asignarPlacaEnCamposPOS(v.placa);
-                document.getElementById('inputMarca').value = v.marca;
-                document.getElementById('inputModelo').value = v.modelo;
-                document.getElementById('inputColor').value = v.color || '';
-                document.getElementById('avisoAutocompletadoPlaca').classList.add('d-none');
-                seleccionarTarjetaCategoriaPorId(v.categoria_vehiculo_id);
-                if (!clienteFijadoManualmente && v.cliente_id) {
-                    seleccionarClienteVisualmente(v.cliente_id);
-                }
-                verificarPlacaEnLavado();
-                actualizarResumen();
-            });
-            contenedor.appendChild(btn);
-        });
-
-        const activarNuevo = !placaSeleccionada;
-        const btnNuevo = document.createElement('button');
-        btnNuevo.type = 'button';
-        btnNuevo.className = 'chip-vehiculo-cliente' + (activarNuevo ? ' active' : '');
-        btnNuevo.innerHTML = `<i class="bi bi-plus-lg me-1"></i>Nueva placa`;
-        btnNuevo.addEventListener('click', function() {
-            document.querySelectorAll('.chip-vehiculo-cliente').forEach(c => c.classList.remove('active'));
-            this.classList.add('active');
-            asignarPlacaEnCamposPOS('');
-            document.getElementById('inputMarca').value = '';
-            document.getElementById('inputModelo').value = '';
-            document.getElementById('inputColor').value = '';
-            document.getElementById('avisoAutocompletadoPlaca').classList.add('d-none');
-            document.getElementById('inputCuerpoPlaca').focus();
-            verificarPlacaEnLavado();
-            actualizarResumen();
-        });
-        contenedor.appendChild(btnNuevo);
-
-        if (autoRellenarPrimero && !placaActiva && !placaPrevia) {
-            if (primerAutoLibre) {
-                asignarPlacaEnCamposPOS(primerAutoLibre.placa);
-                document.getElementById('inputMarca').value = primerAutoLibre.marca;
-                document.getElementById('inputModelo').value = primerAutoLibre.modelo;
-                document.getElementById('inputColor').value = primerAutoLibre.color || '';
-                seleccionarTarjetaCategoriaPorId(primerAutoLibre.categoria_vehiculo_id);
-            } else {
-                asignarPlacaEnCamposPOS('');
-                document.getElementById('inputMarca').value = '';
-                document.getElementById('inputModelo').value = '';
-                document.getElementById('inputColor').value = '';
-            }
+    // Rellena todos los campos del vehículo y selecciona automáticamente a su cliente dueño en la Columna 1
+    function cargarVehiculoEnPOS(v) {
+        if (!v) return;
+        asignarPlacaEnCamposPOS(v.placa);
+        document.getElementById('inputMarca').value = v.marca || '';
+        document.getElementById('inputModelo').value = v.modelo || '';
+        document.getElementById('inputColor').value = v.color || '';
+        seleccionarTarjetaCategoriaPorId(v.categoria_vehiculo_id);
+        if (v.cliente_id) {
+            seleccionarClienteVisualmente(v.cliente_id);
         }
+        ocultarDropdownPlacas();
         verificarPlacaEnLavado();
         actualizarResumen();
     }
 
-    // 1. Selección de Cliente en Columna 1
+    function ocultarDropdownPlacas() {
+        const dd = document.getElementById('dropdownPlacasPOS');
+        if (dd) {
+            dd.innerHTML = '';
+            dd.classList.add('d-none');
+        }
+    }
+
+    function escaparHtmlPOS(txt) {
+        return String(txt || '').replace(/[&<>"']/g, ch => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[ch]));
+    }
+
+    // Muestra las placas registradas que coinciden con lo escrito (prefijo + cuerpo)
+    function mostrarDropdownPlacas() {
+        const dd = document.getElementById('dropdownPlacasPOS');
+        const selPref = document.getElementById('selectPrefijoPlaca');
+        const inpCuerpo = document.getElementById('inputCuerpoPlaca');
+        if (!dd || !selPref || !inpCuerpo) return;
+
+        const cuerpo = (inpCuerpo.value || '').toUpperCase();
+        if (!cuerpo) {
+            ocultarDropdownPlacas();
+            return;
+        }
+        const prefijo = selPref.value;
+        const coincidencias = VEHICULOS_REGISTRADOS.filter(v => {
+            const partes = separarPlacaSV(v.placa);
+            return partes.prefijo === prefijo && partes.cuerpo.includes(cuerpo);
+        }).slice(0, 15);
+
+        if (coincidencias.length === 0) {
+            ocultarDropdownPlacas();
+            return;
+        }
+
+        dd.innerHTML = '';
+        coincidencias.forEach(v => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'list-group-item list-group-item-action py-2 px-3 small';
+            const desc = `${v.marca || ''} ${v.modelo || ''}`.trim() || 'Vehículo';
+            const colorTxt = v.color ? ` (${escaparHtmlPOS(v.color)})` : '';
+            const badgeLavado = v.en_lavado
+                ? ` <span class="text-danger fw-bold">[En Bahía ${escaparHtmlPOS(v.bahia_activa)}]</span>`
+                : '';
+            item.innerHTML = `<i class="bi bi-car-front me-1 text-primary"></i><strong>${escaparHtmlPOS(v.placa)}</strong> — ${escaparHtmlPOS(desc)}${colorTxt}${badgeLavado}`;
+            // mousedown evita que el blur del input cierre el menú antes del clic
+            item.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                cargarVehiculoEnPOS(v);
+            });
+            dd.appendChild(item);
+        });
+        dd.classList.remove('d-none');
+    }
+
+    // Limpia los campos del vehículo para registrar uno nuevo
+    function limpiarCamposVehiculoPOS() {
+        asignarPlacaEnCamposPOS('');
+        document.getElementById('inputMarca').value = '';
+        document.getElementById('inputModelo').value = '';
+        document.getElementById('inputColor').value = '';
+        ocultarDropdownPlacas();
+        verificarPlacaEnLavado();
+        actualizarResumen();
+    }
+
+    // 1. Selección de Cliente en Columna 1 -> Limpia campos para registrar vehículo nuevo
     document.querySelectorAll('.item-cliente-caja').forEach(item => {
         item.addEventListener('click', function(e) {
             if (e.target.closest('.btn-editar-cliente-pos')) return;
-            clienteFijadoManualmente = true;
             const cid = parseInt(this.dataset.id);
             seleccionarClienteVisualmente(cid);
-            document.getElementById('avisoAutocompletadoPlaca').classList.add('d-none');
-            const placaActual = sincronizarPlacaCompletaPOS();
-            const autosCliente = VEHICULOS_REGISTRADOS.filter(v => v.cliente_id === cid && !v.en_lavado);
-            if (!placaActual && autosCliente.length > 0) {
-                const v0 = autosCliente[0];
-                asignarPlacaEnCamposPOS(v0.placa);
-                document.getElementById('inputMarca').value = v0.marca;
-                document.getElementById('inputModelo').value = v0.modelo;
-                document.getElementById('inputColor').value = v0.color || '';
-                seleccionarTarjetaCategoriaPorId(v0.categoria_vehiculo_id);
-                renderizarChipsVehiculosCliente(cid, v0.placa, false);
-            } else {
-                renderizarChipsVehiculosCliente(cid, placaActual || null, false);
-            }
+            limpiarCamposVehiculoPOS();
         });
     });
 
@@ -691,28 +677,24 @@
         const vehiculoMatch = placaEscrita.length > 0
             ? VEHICULOS_REGISTRADOS.find(v => v.placa === placaEscrita)
             : null;
-        const aviso = document.getElementById('avisoAutocompletadoPlaca');
 
         if (vehiculoMatch) {
-            document.getElementById('inputMarca').value = vehiculoMatch.marca;
-            document.getElementById('inputModelo').value = vehiculoMatch.modelo;
-            document.getElementById('inputColor').value = vehiculoMatch.color || '';
-            seleccionarTarjetaCategoriaPorId(vehiculoMatch.categoria_vehiculo_id);
-            if (!clienteFijadoManualmente && vehiculoMatch.cliente_id) {
-                seleccionarClienteVisualmente(vehiculoMatch.cliente_id);
-            }
-            const cidActual = document.getElementById('inputClienteId').value;
-            renderizarChipsVehiculosCliente(cidActual, vehiculoMatch.placa, false);
-            aviso.classList.remove('d-none');
-        } else {
-            aviso.classList.add('d-none');
+            // Coincidencia exacta: rellenar vehículo y seleccionar su cliente dueño
+            cargarVehiculoEnPOS(vehiculoMatch);
+            return;
         }
+        mostrarDropdownPlacas();
         verificarPlacaEnLavado();
         actualizarResumen();
     }
 
     document.getElementById('selectPrefijoPlaca').addEventListener('change', procesarCambioPlacaPOS);
     document.getElementById('inputCuerpoPlaca').addEventListener('input', procesarCambioPlacaPOS);
+    document.getElementById('inputCuerpoPlaca').addEventListener('focus', mostrarDropdownPlacas);
+    document.getElementById('inputCuerpoPlaca').addEventListener('blur', () => setTimeout(ocultarDropdownPlacas, 150));
+    document.getElementById('inputCuerpoPlaca').addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') ocultarDropdownPlacas();
+    });
 
     ['inputMarca', 'inputModelo', 'inputColor'].forEach(id => {
         document.getElementById(id).addEventListener('input', actualizarResumen);
@@ -916,15 +898,15 @@
         });
     });
 
-    // Inicializar precios desde matriz y vista con el primer cliente y sus vehículos registrados
+    // Inicializar precios desde matriz con los campos del vehículo vacíos (sin auto-rellenar ninguna placa)
     if (primeraTarjeta) {
         seleccionarTarjetaCategoriaPorId(primeraTarjeta.dataset.id);
     }
-    const clienteInicialId = document.getElementById('inputClienteId').value;
-    if (clienteInicialId) {
-        renderizarChipsVehiculosCliente(clienteInicialId, null, true);
-    } else {
-        actualizarResumen();
-    }
+    asignarPlacaEnCamposPOS('');
+    document.getElementById('inputMarca').value = '';
+    document.getElementById('inputModelo').value = '';
+    document.getElementById('inputColor').value = '';
+    verificarPlacaEnLavado();
+    actualizarResumen();
 </script>
 {% endblock %}
