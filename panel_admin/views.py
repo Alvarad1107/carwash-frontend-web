@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect
 from functools import wraps
 from django.contrib import messages
 from datetime import datetime, timedelta, timezone
+import re
 import requests
 
 API_URL = "http://127.0.0.1:8000"
@@ -109,6 +110,20 @@ def obtener_json(endpoint):
     except Exception as e:
         print(f"Error consultando {endpoint}: {e}")
     return []
+
+
+REGEX_PLACA_SV = re.compile(
+    r"^(PNC|AB|MB|RE|PR|CC|CD|MI|[PMACFTNOEDV])-?([A-Z0-9]{3,6})$"
+)
+
+
+def normalizar_placa_sv(placa_raw):
+    """Normaliza una placa salvadoreña al formato estricto oficial (Ej. P-123456, MB-1234, PNC-12345)."""
+    limpio = re.sub(r"[^A-Z0-9]", "", (placa_raw or "").strip().upper())
+    m = REGEX_PLACA_SV.match(limpio)
+    if m:
+        return f"{m.group(1)}-{m.group(2)}"
+    return (placa_raw or "").strip().upper()
 
 
 @cajero_o_admin
@@ -581,12 +596,13 @@ def registro_orden(request):
 
             elif accion == "editar_vehiculo":
                 vehiculo_id = int(request.POST.get("vehiculo_id", 0))
+                placa_norm = normalizar_placa_sv(request.POST.get("placa"))
                 res = requests.patch(
                     f"{API_URL}/vehiculos/{vehiculo_id}",
                     json={
                         "cliente_id": int(request.POST.get("cliente_id")),
                         "categoria_vehiculo_id": int(request.POST.get("categoria_vehiculo_id")),
-                        "placa": (request.POST.get("placa") or "").strip().upper(),
+                        "placa": placa_norm,
                         "marca": (request.POST.get("marca") or "").strip(),
                         "modelo": (request.POST.get("modelo") or "").strip(),
                     },
@@ -616,7 +632,7 @@ def registro_orden(request):
                 categoria_id = int(request.POST.get(
                     "categoria_vehiculo_id", 1))
                 bahia_id = proxima_bahia["id"]
-                placa = request.POST.get("placa", "").strip().upper()
+                placa = normalizar_placa_sv(request.POST.get("placa", ""))
                 marca = request.POST.get("marca", "").strip()
                 modelo = request.POST.get("modelo", "").strip()
 
@@ -629,7 +645,7 @@ def registro_orden(request):
                 vehiculos_existentes = obtener_json("/vehiculos/")
                 vehiculo_existente = None
                 for v in vehiculos_existentes:
-                    if v.get("placa", "").strip().upper() == placa:
+                    if normalizar_placa_sv(v.get("placa", "")) == placa:
                         vehiculo_existente = v
                         break
 
@@ -746,6 +762,7 @@ def registro_orden(request):
     matriz = obtener_json("/servicios/matriz-precios")
 
     for v in vehiculos:
+        v["placa"] = normalizar_placa_sv(v.get("placa", ""))
         info_act = vehiculos_en_lavado_map.get(v.get("id"))
         v["en_lavado"] = bool(info_act)
         v["bahia_activa"] = info_act["bahia_id"] if info_act else ""
@@ -838,12 +855,13 @@ def modulo_clientes(request):
 
             elif accion == "editar_vehiculo":
                 vehiculo_id = int(request.POST.get("vehiculo_id", 0))
+                placa_norm = normalizar_placa_sv(request.POST.get("placa"))
                 res = requests.patch(
                     f"{API_URL}/vehiculos/{vehiculo_id}",
                     json={
                         "cliente_id": int(request.POST.get("cliente_id")),
                         "categoria_vehiculo_id": int(request.POST.get("categoria_vehiculo_id")),
-                        "placa": (request.POST.get("placa") or "").strip().upper(),
+                        "placa": placa_norm,
                         "marca": (request.POST.get("marca") or "").strip(),
                         "modelo": (request.POST.get("modelo") or "").strip(),
                     },
@@ -871,6 +889,7 @@ def modulo_clientes(request):
 
     vehiculos_por_cliente = {}
     for v in vehiculos:
+        v["placa"] = normalizar_placa_sv(v.get("placa", ""))
         cid = v.get("cliente_id")
         v["categoria_nombre"] = cat_dict.get(
             v.get("categoria_vehiculo_id"), "Vehículo")

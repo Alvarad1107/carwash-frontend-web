@@ -126,9 +126,31 @@
                     <div class="col-md-6 text-start">
                         <label class="label-sprint">Placa del Vehículo</label>
                         <div class="input-group input-sprint-container" id="boxInputPlaca">
-                            <span class="input-group-text"><i class="bi bi-credit-card-2-front"></i></span>
-                            <input type="text" name="placa" id="inputPlaca" class="form-control text-uppercase" placeholder="P-123456" autocomplete="off" required>
+                            <select id="selectPrefijoPlaca" class="form-select fw-bold text-dark bg-light border-0" style="max-width: 92px;" aria-label="Prefijo de placa">
+                                <option value="P" selected>P</option>
+                                <option value="M">M</option>
+                                <option value="A">A</option>
+                                <option value="C">C</option>
+                                <option value="F">F</option>
+                                <option value="T">T</option>
+                                <option value="N">N</option>
+                                <option value="O">O</option>
+                                <option value="E">E</option>
+                                <option value="D">D</option>
+                                <option value="V">V</option>
+                                <option value="AB">AB</option>
+                                <option value="MB">MB</option>
+                                <option value="RE">RE</option>
+                                <option value="PR">PR</option>
+                                <option value="CC">CC</option>
+                                <option value="CD">CD</option>
+                                <option value="MI">MI</option>
+                                <option value="PNC">PNC</option>
+                            </select>
+                            <span class="input-group-text px-1 text-muted fw-bold">-</span>
+                            <input type="text" id="inputCuerpoPlaca" class="form-control text-uppercase" placeholder="123456" maxlength="6" autocomplete="off" required>
                         </div>
+                        <input type="hidden" name="placa" id="inputPlaca">
                         <small id="errPlacaEnLavado" class="text-danger fw-medium d-none mt-1 d-block"></small>
                     </div>
                     <div class="col-md-6 text-start">
@@ -361,14 +383,49 @@
         {% endfor %}
     ];
 
+    function sincronizarPlacaCompletaPOS() {
+        const selPref = document.getElementById('selectPrefijoPlaca');
+        const inpCuerpo = document.getElementById('inputCuerpoPlaca');
+        const inpPlaca = document.getElementById('inputPlaca');
+        if (!selPref || !inpCuerpo || !inpPlaca) return '';
+        inpCuerpo.value = limpiarCuerpoPlacaSV(inpCuerpo.value);
+        inpPlaca.value = inpCuerpo.value.length > 0 ? `${selPref.value}-${inpCuerpo.value}` : '';
+        return inpPlaca.value;
+    }
+
+    function asignarPlacaEnCamposPOS(placaCompleta) {
+        const selPref = document.getElementById('selectPrefijoPlaca');
+        const inpCuerpo = document.getElementById('inputCuerpoPlaca');
+        const inpPlaca = document.getElementById('inputPlaca');
+        if (!selPref || !inpCuerpo || !inpPlaca) return;
+        if (!placaCompleta) {
+            selPref.value = 'P';
+            inpCuerpo.value = '';
+            inpPlaca.value = '';
+            return;
+        }
+        const partes = separarPlacaSV(placaCompleta);
+        selPref.value = partes.prefijo;
+        inpCuerpo.value = partes.cuerpo;
+        inpPlaca.value = partes.cuerpo.length > 0 ? `${partes.prefijo}-${partes.cuerpo}` : '';
+    }
+
     function verificarPlacaEnLavado() {
-        const placaInput = document.getElementById('inputPlaca');
+        const placaActual = sincronizarPlacaCompletaPOS();
+        const inpCuerpo = document.getElementById('inputCuerpoPlaca');
         const boxPlaca = document.getElementById('boxInputPlaca');
         const errPlaca = document.getElementById('errPlacaEnLavado');
         const btnGenerar = document.getElementById('btnGenerarOrden');
-        if (!placaInput || !boxPlaca || !errPlaca || !btnGenerar) return true;
+        if (!inpCuerpo || !boxPlaca || !errPlaca || !btnGenerar) return true;
 
-        const placaActual = placaInput.value.trim().toUpperCase();
+        if (inpCuerpo.value.length > 0 && !esPlacaValidaSV(placaActual)) {
+            boxPlaca.classList.add('input-invalid');
+            errPlaca.innerText = 'Ingrese de 3 a 6 caracteres alfanuméricos después del prefijo (Ej. 123456 o 783PDA).';
+            errPlaca.classList.remove('d-none');
+            btnGenerar.disabled = true;
+            return false;
+        }
+
         const vehiculoEnLavado = placaActual.length > 0
             ? VEHICULOS_REGISTRADOS.find(v => v.placa === placaActual && v.en_lavado === true)
             : null;
@@ -441,7 +498,7 @@
             btn.addEventListener('click', function() {
                 document.querySelectorAll('.chip-vehiculo-cliente').forEach(c => c.classList.remove('active'));
                 this.classList.add('active');
-                document.getElementById('inputPlaca').value = v.placa;
+                asignarPlacaEnCamposPOS(v.placa);
                 document.getElementById('inputMarca').value = v.marca;
                 document.getElementById('inputModelo').value = v.modelo;
                 document.getElementById('avisoAutocompletadoPlaca').classList.add('d-none');
@@ -460,11 +517,11 @@
         btnNuevo.addEventListener('click', function() {
             document.querySelectorAll('.chip-vehiculo-cliente').forEach(c => c.classList.remove('active'));
             this.classList.add('active');
-            document.getElementById('inputPlaca').value = '';
+            asignarPlacaEnCamposPOS('');
             document.getElementById('inputMarca').value = '';
             document.getElementById('inputModelo').value = '';
             document.getElementById('avisoAutocompletadoPlaca').classList.add('d-none');
-            document.getElementById('inputPlaca').focus();
+            document.getElementById('inputCuerpoPlaca').focus();
             verificarPlacaEnLavado();
             actualizarResumen();
         });
@@ -472,12 +529,12 @@
 
         if (autoRellenarPrimero && !placaActiva) {
             if (primerAutoLibre) {
-                document.getElementById('inputPlaca').value = primerAutoLibre.placa;
+                asignarPlacaEnCamposPOS(primerAutoLibre.placa);
                 document.getElementById('inputMarca').value = primerAutoLibre.marca;
                 document.getElementById('inputModelo').value = primerAutoLibre.modelo;
                 seleccionarTarjetaCategoriaPorId(primerAutoLibre.categoria_vehiculo_id);
             } else {
-                document.getElementById('inputPlaca').value = '';
+                asignarPlacaEnCamposPOS('');
                 document.getElementById('inputMarca').value = '';
                 document.getElementById('inputModelo').value = '';
             }
@@ -527,10 +584,12 @@
         });
     });
 
-    // 4. Autocompletado Inteligente al escribir Placa en inputPlaca
-    document.getElementById('inputPlaca').addEventListener('input', function() {
-        const placaEscrita = this.value.trim().toUpperCase();
-        const vehiculoMatch = VEHICULOS_REGISTRADOS.find(v => v.placa === placaEscrita);
+    // 4. Autocompletado Inteligente al cambiar Prefijo o escribir Código en Placa
+    function procesarCambioPlacaPOS() {
+        const placaEscrita = sincronizarPlacaCompletaPOS();
+        const vehiculoMatch = placaEscrita.length > 0
+            ? VEHICULOS_REGISTRADOS.find(v => v.placa === placaEscrita)
+            : null;
         const aviso = document.getElementById('avisoAutocompletadoPlaca');
 
         if (vehiculoMatch) {
@@ -545,7 +604,10 @@
         }
         verificarPlacaEnLavado();
         actualizarResumen();
-    });
+    }
+
+    document.getElementById('selectPrefijoPlaca').addEventListener('change', procesarCambioPlacaPOS);
+    document.getElementById('inputCuerpoPlaca').addEventListener('input', procesarCambioPlacaPOS);
 
     ['inputMarca', 'inputModelo'].forEach(id => {
         document.getElementById(id).addEventListener('input', actualizarResumen);
@@ -677,13 +739,20 @@
     // 6. Confirmación SweetAlert2 al Generar Orden
     document.getElementById('formGenerarOrden').addEventListener('submit', function(e) {
         e.preventDefault();
-        if (!verificarPlacaEnLavado()) {
+        const placa = sincronizarPlacaCompletaPOS();
+        if (!esPlacaValidaSV(placa) || !verificarPlacaEnLavado()) {
+            if (!esPlacaValidaSV(placa)) {
+                document.getElementById('boxInputPlaca').classList.add('input-invalid');
+                const errPlaca = document.getElementById('errPlacaEnLavado');
+                errPlaca.innerText = 'Ingrese de 3 a 6 caracteres alfanuméricos después del prefijo (Ej. 123456 o 783PDA).';
+                errPlaca.classList.remove('d-none');
+                document.getElementById('inputCuerpoPlaca').focus();
+            }
             return false;
         }
         const form = this;
         const cliente = document.getElementById('resumenCliente').innerText;
         const vehiculo = document.getElementById('resumenAutoTexto').innerText;
-        const placa = document.getElementById('inputPlaca').value.toUpperCase();
         const total = document.getElementById('resumenTotal').innerText;
 
         Swal.fire({

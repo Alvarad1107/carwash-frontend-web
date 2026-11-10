@@ -192,7 +192,7 @@
 <div class="modal fade" id="modalEditarVehiculo" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <form method="POST">
+            <form method="POST" id="formEditarVehiculoDir" novalidate>
                 {% csrf_token %}
                 <input type="hidden" name="accion" value="editar_vehiculo">
                 <input type="hidden" name="vehiculo_id" id="vehEditId">
@@ -215,10 +215,34 @@
                     </div>
                     <div class="row g-3">
                         <div class="col-6">
-                            <label class="label-sprint">Placa</label>
-                            <div class="input-group input-sprint-container">
-                                <input type="text" name="placa" id="vehEditPlaca" class="form-control text-uppercase" required>
+                            <label class="label-sprint">Placa (Ej. P-123456)</label>
+                            <div class="input-group input-sprint-container" id="boxVehEditPlaca">
+                                <select id="vehEditPrefijoPlaca" class="form-select fw-bold text-dark bg-light border-0" style="max-width: 88px;" aria-label="Prefijo de placa">
+                                    <option value="P" selected>P</option>
+                                    <option value="M">M</option>
+                                    <option value="A">A</option>
+                                    <option value="C">C</option>
+                                    <option value="F">F</option>
+                                    <option value="T">T</option>
+                                    <option value="N">N</option>
+                                    <option value="O">O</option>
+                                    <option value="E">E</option>
+                                    <option value="D">D</option>
+                                    <option value="V">V</option>
+                                    <option value="AB">AB</option>
+                                    <option value="MB">MB</option>
+                                    <option value="RE">RE</option>
+                                    <option value="PR">PR</option>
+                                    <option value="CC">CC</option>
+                                    <option value="CD">CD</option>
+                                    <option value="MI">MI</option>
+                                    <option value="PNC">PNC</option>
+                                </select>
+                                <span class="input-group-text px-1 text-muted fw-bold">-</span>
+                                <input type="text" id="vehEditCuerpoPlaca" class="form-control text-uppercase" placeholder="123456" maxlength="6" autocomplete="off" required>
                             </div>
+                            <input type="hidden" name="placa" id="vehEditPlaca">
+                            <small id="errVehEditPlaca" class="text-danger fw-medium d-none mt-1 d-block"></small>
                         </div>
                         <div class="col-6">
                             <label class="label-sprint">Categoría</label>
@@ -244,7 +268,7 @@
                 </div>
                 <div class="modal-footer border-top py-3 px-4">
                     <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary px-4">Guardar y Reasignar</button>
+                    <button type="submit" id="btnGuardarVehEdit" class="btn btn-primary px-4">Guardar y Reasignar</button>
                 </div>
             </form>
         </div>
@@ -258,6 +282,15 @@
             id: {{ c.id }},
             telefono: "{{ c.telefono|default:''|escapejs }}",
             correo: "{{ c.correo|default:''|lower|escapejs }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    const VEHICULOS_DIR = [
+        {% for v in vehiculos %}
+        {
+            id: {{ v.id }},
+            placa: "{{ v.placa|default:''|upper|escapejs }}"
         }{% if not forloop.last %},{% endif %}
         {% endfor %}
     ];
@@ -363,14 +396,63 @@
         }
     });
     
+    function validarVehiculoDir() {
+        const idExcluir = parseInt(document.getElementById('vehEditId').value || '0');
+        const selPref = document.getElementById('vehEditPrefijoPlaca');
+        const inpCuerpo = document.getElementById('vehEditCuerpoPlaca');
+        const placaInput = document.getElementById('vehEditPlaca');
+        const boxPlaca = document.getElementById('boxVehEditPlaca');
+        const errPlaca = document.getElementById('errVehEditPlaca');
+        const btnGuardar = document.getElementById('btnGuardarVehEdit');
+
+        inpCuerpo.value = limpiarCuerpoPlacaSV(inpCuerpo.value);
+        const placaVal = inpCuerpo.value.length > 0 ? `${selPref.value}-${inpCuerpo.value}` : '';
+        placaInput.value = placaVal;
+
+        if (!esPlacaValidaSV(placaVal)) {
+            boxPlaca.classList.add('input-invalid');
+            errPlaca.innerText = 'Ingrese de 3 a 6 caracteres alfanuméricos después del prefijo (Ej. 123456 o 783PDA).';
+            errPlaca.classList.remove('d-none');
+            btnGuardar.disabled = true;
+            return false;
+        }
+
+        const duplicada = VEHICULOS_DIR.some(v => v.id !== idExcluir && v.placa === placaVal);
+        if (duplicada) {
+            boxPlaca.classList.add('input-invalid');
+            errPlaca.innerText = 'Esta placa ya pertenece a otro vehículo registrado';
+            errPlaca.classList.remove('d-none');
+            btnGuardar.disabled = true;
+            return false;
+        }
+
+        boxPlaca.classList.remove('input-invalid');
+        errPlaca.classList.add('d-none');
+        btnGuardar.disabled = false;
+        return true;
+    }
+
+    document.getElementById('vehEditPrefijoPlaca').addEventListener('change', validarVehiculoDir);
+    document.getElementById('vehEditCuerpoPlaca').addEventListener('input', validarVehiculoDir);
+
+    document.getElementById('formEditarVehiculoDir').addEventListener('submit', function(e) {
+        if (!validarVehiculoDir()) {
+            e.preventDefault();
+        }
+    });
+
     document.querySelectorAll('.btn-editar-vehiculo').forEach(btn => {
         btn.addEventListener('click', function() {
             document.getElementById('vehEditId').value = this.dataset.id;
             document.getElementById('vehEditCliente').value = this.dataset.cliente;
             document.getElementById('vehEditCategoria').value = this.dataset.categoria;
-            document.getElementById('vehEditPlaca').value = this.dataset.placa;
+            const partes = separarPlacaSV(this.dataset.placa || '');
+            document.getElementById('vehEditPrefijoPlaca').value = partes.prefijo;
+            document.getElementById('vehEditCuerpoPlaca').value = partes.cuerpo;
+            document.getElementById('vehEditPlaca').value = partes.cuerpo.length > 0 ? `${partes.prefijo}-${partes.cuerpo}` : '';
             document.getElementById('vehEditMarca').value = this.dataset.marca;
             document.getElementById('vehEditModelo').value = this.dataset.modelo;
+            validarVehiculoDir();
             const modal = new bootstrap.Modal(document.getElementById('modalEditarVehiculo'));
             modal.show();
         });

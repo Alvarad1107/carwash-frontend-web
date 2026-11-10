@@ -18,6 +18,36 @@
         if (localStorage.getItem('sprintwash_sidebar_collapsed') === 'true') {
             document.body.classList.add('sidebar-collapsed');
         }
+
+        // Utilidad global: Máscara estricta de teléfono 0000-0000 en tiempo real
+        function formatearTelefonoInput(input) {
+            if (!input) return;
+            let digitos = (input.value || '').replace(/\D/g, '').slice(0, 8);
+            if (digitos.length > 4) {
+                input.value = digitos.slice(0, 4) + '-' + digitos.slice(4);
+            } else {
+                input.value = digitos;
+            }
+        }
+
+        // Utilidades globales para placas salvadoreñas (Prefijo en <select> + 3 a 6 caracteres alfanuméricos)
+        const REGEX_PLACA_SV = /^(PNC|AB|MB|RE|PR|CC|CD|MI|[PMACFTNOEDV])-[A-Z0-9]{3,6}$/;
+
+        function limpiarCuerpoPlacaSV(valor) {
+            return (valor || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+        }
+
+        function esPlacaValidaSV(placa) {
+            return REGEX_PLACA_SV.test((placa || '').trim().toUpperCase());
+        }
+
+        function separarPlacaSV(placaCompleta) {
+            const limpia = (placaCompleta || '').trim().toUpperCase();
+            const m = limpia.match(/^(PNC|AB|MB|RE|PR|CC|CD|MI|[PMACFTNOEDV])-?(.*)$/);
+            return m
+                ? { prefijo: m[1], cuerpo: limpiarCuerpoPlacaSV(m[2]) }
+                : { prefijo: 'P', cuerpo: limpiarCuerpoPlacaSV(limpia) };
+        }
     </script>
 
     <!-- SIDEBAR IZQUIERDO RETRÁCTIL (260px <-> 76px en escritorio / Offcanvas en móvil) -->
@@ -186,16 +216,6 @@
                 const colapsado = document.body.classList.contains('sidebar-collapsed');
                 localStorage.setItem('sprintwash_sidebar_collapsed', colapsado ? 'true' : 'false');
             });
-        }
-
-        // Utilidad global: Máscara estricta de teléfono 0000-0000 en tiempo real
-        function formatearTelefonoInput(input) {
-            let digitos = (input.value || '').replace(/\D/g, '').slice(0, 8);
-            if (digitos.length > 4) {
-                input.value = digitos.slice(0, 4) + '-' + digitos.slice(4);
-            } else {
-                input.value = digitos;
-            }
         }
 
         document.querySelectorAll('input[name="telefono"], .input-telefono-sv').forEach(inp => {
