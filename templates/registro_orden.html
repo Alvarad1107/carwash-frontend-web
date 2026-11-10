@@ -117,7 +117,7 @@
                              style="cursor:pointer;"
                              data-id="{{ cat.id }}"
                              data-nombre="{{ cat.nombre }}"
-                             data-precio="{{ cat.precio_base|stringformat:'.2f' }}">
+                             data-precio="{{ cat.precio_base }}">
                             <i class="bi {% if 'Pick' in cat.nombre or 'Grande' in cat.nombre %}bi-truck-front{% elif 'Micro' in cat.nombre %}bi-bus-front{% elif 'Moto' in cat.nombre %}bi-bicycle{% else %}bi-car-front-fill{% endif %} fs-4 {% if forloop.first %}text-primary{% else %}text-muted{% endif %} d-block mb-1 icono-cat"></i>
                             <span class="d-block fw-bold text-dark text-truncate" style="font-size: 0.8rem;">{{ cat.nombre }}</span>
                             <span class="d-block text-muted etiqueta-precio-cat" style="font-size: 0.74rem;">
@@ -400,14 +400,14 @@
     ];
 
     const MATRIZ_PRECIOS = [
-        {% for m in matriz %}
-        {
-            categoria_vehiculo_id: {{ m.categoria_vehiculo_id }},
-            servicio_base_id: {{ m.servicio_base_id }},
-            precio_base: {{ m.precio_base|stringformat:".2f" }}
-        }{% if not forloop.last %},{% endif %}
-        {% endfor %}
-    ];
+    {% for m in matriz %}
+    {
+        categoria_vehiculo_id: {{ m.categoria_vehiculo_id }},
+        servicio_base_id: {{ m.servicio_base_id }},
+        precio_base: parseFloat("{{ m.precio_base }}".replace(',', '.')) || 0
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+];
 
     const PATIO_LLENO = {{ patio_lleno|yesno:"true,false" }};
     const RECEPCION_ABIERTA = {{ recepcion_abierta|yesno:"true,false" }};
