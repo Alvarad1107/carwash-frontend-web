@@ -39,7 +39,7 @@
                         <th>Nombre Completo</th>
                         <th>Teléfono</th>
                         <th>Correo Electrónico</th>
-                        <th>Vehículos Asociados</th>
+                        <th>Placas Atendidas / Registradas</th>
                         <th class="text-end pe-4">Acciones</th>
                     </tr>
                 </thead>
@@ -53,7 +53,7 @@
                                 <span>{{ c.nombre_completo }}</span>
                             </div>
                         </td>
-                        <td class="fw-medium">{{ c.telefono|default:"---" }}</td>
+                        <td class="fw-medium text-nowrap">{{ c.telefono|default:"---" }}</td>
                         <td class="text-muted">{{ c.correo|default:"---" }}</td>
                         <td>
                             <div class="d-flex flex-wrap gap-1">
@@ -67,8 +67,9 @@
                                         data-categoria="{{ v.categoria_vehiculo_id }}"
                                         data-placa="{{ v.placa }}"
                                         data-marca="{{ v.marca|default:'' }}"
-                                        data-modelo="{{ v.modelo|default:'' }}">
-                                    <strong class="text-sprint">{{ v.placa }}</strong> · {{ v.marca }} {{ v.modelo }}
+                                        data-modelo="{{ v.modelo|default:'' }}"
+                                        data-color="{{ v.color|default:'' }}">
+                                    <strong class="text-sprint">{{ v.placa }}</strong> · {{ v.marca }} {{ v.modelo }}{% if v.color %} <span class="text-muted">({{ v.color }})</span>{% endif %}
                                     <i class="bi bi-arrow-left-right text-muted ms-1"></i>
                                 </button>
                                 {% empty %}
@@ -78,12 +79,12 @@
                         </td>
                         <td class="text-end pe-4">
                             <button type="button"
-                                    class="btn btn-sm btn-light border text-dark btn-editar-cliente"
-                                    title="Editar datos del cliente"
-                                    data-id="{{ c.id }}"
-                                    data-nombre="{{ c.nombre_completo }}"
-                                    data-telefono="{{ c.telefono|default:'' }}"
-                                    data-correo="{{ c.correo|default:'' }}">
+                                     class="btn btn-sm btn-light border text-dark btn-editar-cliente"
+                                     title="Editar datos del cliente"
+                                     data-id="{{ c.id }}"
+                                     data-nombre="{{ c.nombre_completo }}"
+                                     data-telefono="{{ c.telefono|default:'' }}"
+                                     data-correo="{{ c.correo|default:'' }}">
                                 <i class="bi bi-pencil-square text-primary me-1"></i>Editar
                             </button>
                         </td>
@@ -252,16 +253,22 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-6">
+                        <div class="col-4">
                             <label class="label-sprint">Marca</label>
                             <div class="input-group input-sprint-container">
                                 <input type="text" name="marca" id="vehEditMarca" class="form-control" required>
                             </div>
                         </div>
-                        <div class="col-6">
+                        <div class="col-4">
                             <label class="label-sprint">Modelo</label>
                             <div class="input-group input-sprint-container">
                                 <input type="text" name="modelo" id="vehEditModelo" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <label class="label-sprint">Color</label>
+                            <div class="input-group input-sprint-container">
+                                <input type="text" name="color" id="vehEditColor" class="form-control" placeholder="Ej. Blanco, Negro" required>
                             </div>
                         </div>
                     </div>
@@ -404,6 +411,7 @@
         const boxPlaca = document.getElementById('boxVehEditPlaca');
         const errPlaca = document.getElementById('errVehEditPlaca');
         const btnGuardar = document.getElementById('btnGuardarVehEdit');
+        const colorVal = (document.getElementById('vehEditColor').value || '').trim();
 
         inpCuerpo.value = limpiarCuerpoPlacaSV(inpCuerpo.value);
         const placaVal = inpCuerpo.value.length > 0 ? `${selPref.value}-${inpCuerpo.value}` : '';
@@ -428,12 +436,13 @@
 
         boxPlaca.classList.remove('input-invalid');
         errPlaca.classList.add('d-none');
-        btnGuardar.disabled = false;
-        return true;
+        btnGuardar.disabled = (!colorVal || colorVal.toUpperCase() === 'N/A');
+        return Boolean(colorVal && colorVal.toUpperCase() !== 'N/A');
     }
 
     document.getElementById('vehEditPrefijoPlaca').addEventListener('change', validarVehiculoDir);
     document.getElementById('vehEditCuerpoPlaca').addEventListener('input', validarVehiculoDir);
+    document.getElementById('vehEditColor').addEventListener('input', validarVehiculoDir);
 
     document.getElementById('formEditarVehiculoDir').addEventListener('submit', function(e) {
         if (!validarVehiculoDir()) {
@@ -452,6 +461,7 @@
             document.getElementById('vehEditPlaca').value = partes.cuerpo.length > 0 ? `${partes.prefijo}-${partes.cuerpo}` : '';
             document.getElementById('vehEditMarca').value = this.dataset.marca;
             document.getElementById('vehEditModelo').value = this.dataset.modelo;
+            document.getElementById('vehEditColor').value = this.dataset.color || 'Blanco';
             validarVehiculoDir();
             const modal = new bootstrap.Modal(document.getElementById('modalEditarVehiculo'));
             modal.show();

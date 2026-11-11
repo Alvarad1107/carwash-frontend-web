@@ -9,7 +9,7 @@ API_URL = "http://127.0.0.1:8000"
 
 
 def verificar_acceso_y_estado(request):
-    """Verifica que exista sesión y que el usuario no haya sido desactivado en tiempo real."""
+    """Verifica que exista sesión y sincroniza en tiempo real el estado y rol del usuario desde la API."""
     uid = request.session.get("usuario_id")
     if not uid:
         messages.error(
@@ -20,13 +20,31 @@ def verificar_acceso_y_estado(request):
     if usuarios:
         usuario_actual = next(
             (u for u in usuarios if u.get("id") == uid), None)
-        if usuario_actual and usuario_actual.get("estado") == 0:
+        if not usuario_actual or usuario_actual.get("estado") == 0:
             request.session.flush()
             messages.error(
                 request,
                 "Tu sesión ha sido cerrada porque tu cuenta fue desactivada por un Administrador.",
             )
             return False
+
+        rol_real = int(usuario_actual.get("rol_id") or 3)
+        if rol_real == 3:
+            request.session.flush()
+            messages.error(
+                request,
+                "Acceso revocado: Tu rol es Operativo y debes ingresar exclusivamente desde la Aplicación Móvil.",
+            )
+            return False
+
+        request.session["rol_id"] = rol_real
+        request.session["rol_nombre"] = (
+            "ADMINISTRADOR" if rol_real == 1 else "CAJERO"
+        )
+        if usuario_actual.get("nombre_completo"):
+            request.session["usuario_nombre"] = usuario_actual.get(
+                "nombre_completo"
+            )
     return True
 
 
@@ -134,6 +152,7 @@ def dashboard_prueba(request):
 
     ordenes = obtener_json("/ordenes/")
     insumos = obtener_json("/inventario/")
+    bahias_api = obtener_json("/bahias/")
 
     ingreso_dia = 0.0
     ingreso_semana = 0.0
@@ -163,21 +182,30 @@ def dashboard_prueba(request):
                 terminados_hoy += 1
                 ingreso_dia += total
 
-        # Acumulados históricos de semana y mes
-        if estado in ["pagado", "terminado", "listo para entrega", "entregado"]:
+        # Acumulados históricos de semana y mes (excluyendo órdenes futuras pospuestas)
+        if fecha_orden <= hoy and estado in ["pagado", "terminado", "listo para entrega", "entregado"]:
             if fecha_orden >= inicio_semana:
                 ingreso_semana += total
             if fecha_orden.year == hoy.year and fecha_orden.month == hoy.month:
                 ingreso_mes += total
 
-    bahias = [
-        {
-            "id": i,
-            "nombre": f"Bahía {i}",
-            "estado": "Ocupada" if i in bahias_ocupadas_ids else "Disponible",
-        }
-        for i in range(1, 7)
-    ]
+    bahias = []
+    for b in sorted(bahias_api, key=lambda x: x.get("id", 0)):
+        bid = int(b.get("id", 0))
+        estado_api = b.get("estado", "Disponible")
+        if estado_api == "Mantenimiento":
+            estado_real = "Mantenimiento"
+        elif bid in bahias_ocupadas_ids:
+            estado_real = "Ocupada"
+        else:
+            estado_real = "Disponible"
+        bahias.append({
+            "id": bid,
+            "nombre": b.get("nombre") or f"Bahía {bid}",
+            "estado": estado_real,
+        })
+
+    bahias_libres = sum(1 for b in bahias if b["estado"] == "Disponible")
 
     alertas_stock = [
         item
@@ -192,9 +220,8 @@ def dashboard_prueba(request):
         "en_proceso": en_proceso,
         "terminados_hoy": terminados_hoy,
         "bahias": bahias,
-        "bahias_libres": 6 - len(bahias_ocupadas_ids),
+        "bahias_libres": bahias_libres,
         "alertas_stock": alertas_stock,
-        # Mostramos únicamente las órdenes del día de hoy ordenadas de la más reciente a la más antigua
         "ultimas_ordenes": sorted(
             ordenes_hoy, key=lambda x: x.get("id", 0), reverse=True
         ),
@@ -301,6 +328,8 @@ def monitor_operaciones(request):
         oid = o.get("id")
         ya_pagada = oid in ordenes_pagadas_ids
         estado = o.get("estado", "Pendiente")
+        veces_pospuesta = int(o.get("veces_pospuesta") or 0)
+
         if estado == "Pendiente":
             conteo_pendientes += 1
             tiempo_texto = "En espera"
@@ -314,11 +343,15 @@ def monitor_operaciones(request):
             tiempo_texto = "En patio"
 
         vehiculo = vehiculos_dict.get(o.get("vehiculo_id"), {})
-        cliente = clientes_dict.get(vehiculo.get("cliente_id"), {})
+        cliente_id_orden = o.get("cliente_id") or vehiculo.get("cliente_id")
+        cliente = clientes_dict.get(cliente_id_orden, {})
         placa = vehiculo.get("placa", "Sin Placa")
         marca = vehiculo.get("marca", "")
         modelo = vehiculo.get("modelo", "")
+        color = (vehiculo.get("color") or "").strip()
         detalle_auto = f"{marca} {modelo}".strip()
+        if color:
+            detalle_auto = f"{detalle_auto} ({color})".strip()
 
         ordenes_lista.append({
             "id_formateado": f"{oid or 0:08d}",
@@ -329,6 +362,7 @@ def monitor_operaciones(request):
             "tiempo": tiempo_texto,
             "estado": estado,
             "ya_pagada": ya_pagada,
+            "veces_pospuesta": veces_pospuesta,
         })
 
     contexto = {
@@ -350,35 +384,45 @@ def cambiar_estado_orden(request, orden_id):
         nuevo_estado = request.POST.get("estado")
         if nuevo_estado:
             try:
-                ordenes = obtener_json("/ordenes/")
-                orden_actual = next(
-                    (o for o in ordenes if o.get("id") == int(orden_id)), None
-                )
-                estado_actual = (orden_actual or {}).get("estado", "Pendiente")
-
-                # Regla de flujo unidireccional: Pendiente -> En proceso -> Listo para entrega
-                if estado_actual in ["Listo para entrega", "Terminado", "Pagado", "Entregado"]:
-                    messages.error(
-                        request,
-                        f"Operación bloqueada: La orden #{int(orden_id):08d} ya fue marcada como Terminada y no puede regresar a un estado anterior.",
-                    )
-                    return redirect("monitor")
-
-                if estado_actual == "En proceso" and nuevo_estado == "Pendiente":
-                    messages.error(
-                        request,
-                        f"Operación bloqueada: La orden #{int(orden_id):08d} ya está En Proceso y no puede regresar a Pendiente.",
-                    )
-                    return redirect("monitor")
-
-                requests.patch(
+                res = requests.patch(
                     f"{API_URL}/ordenes/{orden_id}/estado",
                     json={"estado": nuevo_estado},
                     timeout=10,
                 )
+                if res.status_code != 200:
+                    try:
+                        detalle = res.json().get("detail", "No se pudo cambiar el estado de la orden.")
+                    except Exception:
+                        detalle = "No se pudo cambiar el estado de la orden."
+                    messages.error(request, detalle)
             except Exception as e:
                 print(
                     f"Error actualizando el estado de la orden {orden_id}: {e}")
+    return redirect("monitor")
+
+
+@login_requerido
+def posponer_orden_manana(request, orden_id):
+    if request.method == "POST":
+        try:
+            res = requests.post(
+                f"{API_URL}/ordenes/{orden_id}/posponer",
+                timeout=6,
+            )
+            if res.status_code == 200:
+                messages.success(
+                    request,
+                    f"Orden #{int(orden_id):08d} pospuesta exitosamente para mañana a las 7:00 AM (1/1). La bahía quedó libre hoy.",
+                )
+            else:
+                try:
+                    detalle = res.json().get("detail", "No se pudo posponer la orden.")
+                except Exception:
+                    detalle = "No se pudo posponer la orden."
+                messages.error(request, detalle)
+        except Exception as e:
+            print(f"Error al posponer orden {orden_id}: {e}")
+            messages.error(request, "Error de conexión con la API al posponer la orden.")
     return redirect("monitor")
 
 
@@ -457,7 +501,7 @@ def catalogos(request):
 
         return redirect("catalogos")
 
-    # Consultamos cada endpoint de forma independiente
+    # Consultamos cada endpoint de forma independiente (100% API REST, sin datos quemados)
     categorias = obtener_json("/categorias-vehiculos/")
     servicios_base = obtener_json("/servicios/base")
     matriz = obtener_json("/servicios/matriz-precios")
@@ -467,22 +511,13 @@ def catalogos(request):
     sb_dict = {s["id"]: s["nombre"] for s in servicios_base}
 
     matriz_lista = []
-    if matriz:
-        for m in matriz:
-            matriz_lista.append({
-                "id": m.get("id"),
-                "servicio_nombre": sb_dict.get(m.get("servicio_base_id"), "Lavado Básico"),
-                "categoria_nombre": cat_dict.get(m.get("categoria_vehiculo_id"), "General"),
-                "precio_base": float(m.get("precio_base", 0)),
-            })
-    elif servicios_base:
-        # Respaldo automático por si la tabla precios_servicio_base tiene bloqueo en XAMPP local
-        matriz_lista = [
-            {"id": 1, "servicio_nombre": servicios_base[0]["nombre"],
-                "categoria_nombre": "Sedán", "precio_base": 4.00},
-            {"id": 2, "servicio_nombre": servicios_base[0]["nombre"],
-                "categoria_nombre": "Pick Up", "precio_base": 8.00},
-        ]
+    for m in matriz:
+        matriz_lista.append({
+            "id": m.get("id"),
+            "servicio_nombre": sb_dict.get(m.get("servicio_base_id"), ""),
+            "categoria_nombre": cat_dict.get(m.get("categoria_vehiculo_id"), ""),
+            "precio_base": float(m.get("precio_base", 0)),
+        })
 
     contexto = {
         "categorias": categorias,
@@ -494,14 +529,44 @@ def catalogos(request):
 
 @cajero_o_admin
 def registro_orden(request):
+    # Inicializar catálogos base y migraciones en la API antes de leer
+    obtener_json("/finanzas/usuarios")
+
+    ahora_local = ahora_sv()
+    hoy = ahora_local.date()
+
+    estado_horario_api = obtener_json("/ordenes/estado-horario")
+    if isinstance(estado_horario_api, dict) and "recepcion_abierta" in estado_horario_api:
+        recepcion_abierta = bool(estado_horario_api.get("recepcion_abierta"))
+        en_ventana_prorroga = bool(estado_horario_api.get("en_ventana_prorroga"))
+        hora_sv_str = estado_horario_api.get("hora_sv", ahora_local.strftime("%H:%M"))
+        mensaje_horario = estado_horario_api.get("mensaje", "")
+    else:
+        recepcion_abierta = 7 <= ahora_local.hour < 17
+        en_ventana_prorroga = ahora_local.hour == 16 and ahora_local.minute >= 45
+        hora_sv_str = ahora_local.strftime("%H:%M")
+        mensaje_horario = (
+            "Recepción cerrada: El horario para recibir vehículos es de 7:00 AM a 5:00 PM."
+            if not recepcion_abierta
+            else (
+                "Aviso de horario (4:45 PM - 5:00 PM): Las órdenes registradas en este intervalo quedarán programadas para el día siguiente."
+                if en_ventana_prorroga
+                else "Recepción abierta (7:00 AM - 5:00 PM)."
+            )
+        )
+
     ordenes_todas = obtener_json("/ordenes/")
     bahias_raw = obtener_json("/bahias/")
 
     ordenes_activas = [
         o for o in ordenes_todas if o.get("estado") in ["Pendiente", "En proceso"]
     ]
+    ordenes_activas_hoy = [
+        o for o in ordenes_activas
+        if fecha_iso_a_sv(o.get("created_at", "")).date() <= hoy
+    ]
     bahias_ocupadas_ids = {
-        int(o.get("bahia_id")) for o in ordenes_activas if o.get("bahia_id")
+        int(o.get("bahia_id")) for o in ordenes_activas_hoy if o.get("bahia_id")
     }
     vehiculos_en_lavado_map = {
         int(o.get("vehiculo_id")): {
@@ -513,22 +578,19 @@ def registro_orden(request):
         if o.get("vehiculo_id")
     }
 
-    bahias_api_dict = {
-        int(b.get("id", 0)): b for b in bahias_raw if b.get("id")
-    }
     bahias = []
-    for i in range(1, 7):
-        b_info = bahias_api_dict.get(i, {})
+    for b_info in sorted(bahias_raw, key=lambda x: x.get("id", 0)):
+        bid = int(b_info.get("id", 0))
         estado_api = b_info.get("estado", "Disponible")
-        if i in bahias_ocupadas_ids:
-            estado_real = "Ocupada"
-        elif estado_api == "Mantenimiento":
+        if estado_api == "Mantenimiento":
             estado_real = "Mantenimiento"
+        elif bid in bahias_ocupadas_ids:
+            estado_real = "Ocupada"
         else:
             estado_real = "Disponible"
         bahias.append({
-            "id": i,
-            "nombre": b_info.get("nombre") or f"Bahía {i}",
+            "id": bid,
+            "nombre": b_info.get("nombre") or f"Bahía {bid}",
             "estado": estado_real,
         })
 
@@ -536,15 +598,15 @@ def registro_orden(request):
         (
             b
             for b in bahias
-            if b["id"] not in bahias_ocupadas_ids
-            and b["estado"] != "Mantenimiento"
+            if b["estado"] != "Mantenimiento"
+            and (en_ventana_prorroga or b["id"] not in bahias_ocupadas_ids)
         ),
         None,
     )
     bahias_libres_count = sum(
         1 for b in bahias if b["estado"] == "Disponible"
     )
-    patio_lleno = len(bahias_ocupadas_ids) >= 6 or (proxima_bahia is None)
+    patio_lleno = (not en_ventana_prorroga and bahias_libres_count == 0) or (proxima_bahia is None)
 
     if request.method == "POST":
         accion = request.POST.get("accion")
@@ -605,6 +667,7 @@ def registro_orden(request):
                         "placa": placa_norm,
                         "marca": (request.POST.get("marca") or "").strip(),
                         "modelo": (request.POST.get("modelo") or "").strip(),
+                        "color": (request.POST.get("color") or "").strip(),
                     },
                     timeout=5,
                 )
@@ -618,28 +681,40 @@ def registro_orden(request):
                     except Exception:
                         detalle = "No se pudo actualizar el vehículo."
                     messages.error(request, detalle)
+                return redirect("caja")
 
             # 2. Acción para generar la orden completa y mandarla al Monitor
             elif accion == "generar_orden":
-                if len(bahias_ocupadas_ids) >= 6 or proxima_bahia is None:
+                if not recepcion_abierta:
                     messages.error(
                         request,
-                        "Capacidad máxima alcanzada: Las 6 bahías están ocupadas en este momento. Debes finalizar un lavado en el Monitor antes de registrar otro vehículo.",
+                        mensaje_horario or "Recepción cerrada: El horario para recibir vehículos es de 7:00 AM a 5:00 PM.",
+                    )
+                    return redirect("caja")
+
+                if patio_lleno or proxima_bahia is None:
+                    messages.error(
+                        request,
+                        "Capacidad máxima alcanzada: Las bahías disponibles están ocupadas en este momento. Debes finalizar un lavado en el Monitor antes de registrar otro vehículo.",
                     )
                     return redirect("caja")
 
                 cliente_id = int(request.POST.get("cliente_id", 1))
-                categoria_id = int(request.POST.get(
-                    "categoria_vehiculo_id", 1))
+                categoria_id = int(request.POST.get("categoria_vehiculo_id", 1))
+                servicio_base_id = int(request.POST.get("servicio_base_id", 1))
                 bahia_id = proxima_bahia["id"]
                 placa = normalizar_placa_sv(request.POST.get("placa", ""))
-                marca = request.POST.get("marca", "").strip()
-                modelo = request.POST.get("modelo", "").strip()
-
-                subtotal = float(request.POST.get("subtotal", 0))
-                impuestos = float(request.POST.get("impuestos", 0))
-                total_pagar = float(request.POST.get("total_pagar", 0))
+                marca = (request.POST.get("marca") or "").strip()
+                modelo = (request.POST.get("modelo") or "").strip()
+                color = (request.POST.get("color") or "").strip()
                 extras_ids = request.POST.getlist("extras_ids")
+
+                if not color or color.upper() == "N/A":
+                    messages.error(
+                        request,
+                        "El color del vehículo es obligatorio para registrar la orden.",
+                    )
+                    return redirect("caja")
 
                 # Verificar si la placa ya existe en MySQL o crear el vehículo
                 vehiculos_existentes = obtener_json("/vehiculos/")
@@ -660,24 +735,19 @@ def registro_orden(request):
                         )
                         return redirect("caja")
 
-                    # Si el vehículo ya existe y se modificaron marca, modelo, categoría o cliente, sincronizar vía PATCH
-                    if (
-                        (vehiculo_existente.get("marca") or "") != marca
-                        or (vehiculo_existente.get("modelo") or "") != modelo
-                        or int(vehiculo_existente.get("categoria_vehiculo_id") or 0) != categoria_id
-                        or int(vehiculo_existente.get("cliente_id") or 0) != cliente_id
-                    ):
-                        requests.patch(
-                            f"{API_URL}/vehiculos/{vehiculo_id}",
-                            json={
-                                "cliente_id": cliente_id,
-                                "categoria_vehiculo_id": categoria_id,
-                                "placa": placa,
-                                "marca": marca,
-                                "modelo": modelo,
-                            },
-                            timeout=5,
-                        )
+                    # Actualizar marca, modelo, color, categoría y último cliente que trajo el vehículo
+                    requests.patch(
+                        f"{API_URL}/vehiculos/{vehiculo_id}",
+                        json={
+                            "cliente_id": cliente_id,
+                            "categoria_vehiculo_id": categoria_id,
+                            "placa": placa,
+                            "marca": marca,
+                            "modelo": modelo,
+                            "color": color,
+                        },
+                        timeout=5,
+                    )
                 else:
                     res_veh = requests.post(
                         f"{API_URL}/vehiculos/",
@@ -687,7 +757,7 @@ def registro_orden(request):
                             "placa": placa,
                             "marca": marca,
                             "modelo": modelo,
-                            "color": "N/A",
+                            "color": color,
                         },
                         timeout=5,
                     )
@@ -701,12 +771,13 @@ def registro_orden(request):
                         messages.error(request, detalle)
                         return redirect("caja")
 
-                # Crear la orden en estado Pendiente, registrar detalles y actualizar montos
+                # Crear la orden en la API enviando el cliente_id que solicita hoy el lavado
                 if vehiculo_id:
                     res_ord = requests.post(
                         f"{API_URL}/ordenes/",
                         json={
                             "vehiculo_id": vehiculo_id,
+                            "cliente_id": cliente_id,
                             "bahia_id": bahia_id,
                             "estado": "Pendiente",
                         },
@@ -716,7 +787,17 @@ def registro_orden(request):
                         orden_creada = res_ord.json()
                         orden_id = orden_creada.get("id")
 
-                        # Registrar servicios adicionales para el cálculo de comisiones
+                        # 1. Registrar el servicio base seleccionado en /detalles-orden/ (la API calcula subtotal e IVA 13%)
+                        requests.post(
+                            f"{API_URL}/detalles-orden/",
+                            json={
+                                "orden_id": orden_id,
+                                "servicio_base_id": servicio_base_id,
+                            },
+                            timeout=5,
+                        )
+
+                        # 2. Registrar servicios adicionales en /detalles-orden/
                         for extra_id in extras_ids:
                             requests.post(
                                 f"{API_URL}/detalles-orden/",
@@ -727,16 +808,16 @@ def registro_orden(request):
                                 timeout=5,
                             )
 
-                        # Ajustar el subtotal, impuestos (13%) y total exacto calculado en caja
-                        requests.patch(
-                            f"{API_URL}/ordenes/{orden_id}",
-                            json={
-                                "subtotal": subtotal,
-                                "impuestos": impuestos,
-                                "total_pagar": total_pagar,
-                            },
-                            timeout=5,
-                        )
+                        if en_ventana_prorroga:
+                            messages.warning(
+                                request,
+                                f"Orden #{int(orden_id):08d} registrada en ventana 4:45 PM - 5:00 PM: Quedó programada automáticamente para mañana a las 7:00 AM.",
+                            )
+                        else:
+                            messages.success(
+                                request,
+                                f"Orden #{int(orden_id):08d} registrada y enviada a Bahía {bahia_id}.",
+                            )
                     else:
                         try:
                             detalle = res_ord.json().get("detail", "No se pudo generar la orden.")
@@ -751,13 +832,11 @@ def registro_orden(request):
                 request, "Error de conexión al procesar la solicitud.")
             return redirect("caja")
 
-    # Inicializar catálogos base si la BD recién se creó
-    obtener_json("/finanzas/usuarios")
-
-    # Peticiones GET para alimentar la pantalla de Punto de Venta
+    # Peticiones GET para alimentar la pantalla de Punto de Venta (100% desde la API)
     clientes = obtener_json("/clientes/")
     vehiculos = obtener_json("/vehiculos/")
     categorias = obtener_json("/categorias-vehiculos/")
+    servicios_base = obtener_json("/servicios/base")
     adicionales = obtener_json("/servicios/adicionales")
     matriz = obtener_json("/servicios/matriz-precios")
 
@@ -768,20 +847,11 @@ def registro_orden(request):
         v["bahia_activa"] = info_act["bahia_id"] if info_act else ""
         v["estado_activo"] = info_act["estado"] if info_act else ""
 
-    if not categorias:
-        categorias = [
-            {"id": 1, "nombre": "Sedán", "comision_base": 2.50},
-            {"id": 2, "nombre": "Pick Up", "comision_base": 3.00},
-            {"id": 3, "nombre": "Carros Medianos", "comision_base": 2.50},
-            {"id": 4, "nombre": "Carros Grandes", "comision_base": 3.00},
-        ]
-
-    precios_respaldo = {1: 4.00, 2: 5.00, 3: 6.00, 4: 8.00, 5: 10.00}
+    servicio_base_default_id = servicios_base[0]["id"] if servicios_base else 1
     precios_por_categoria = {}
     for m in matriz:
-        # Tomamos el precio del Lavado Básico (servicio_base_id == 1) por categoría
         if (
-            m.get("servicio_base_id") == 1
+            m.get("servicio_base_id") == servicio_base_default_id
             or m.get("categoria_vehiculo_id") not in precios_por_categoria
         ):
             precios_por_categoria[m.get("categoria_vehiculo_id")] = float(
@@ -790,19 +860,23 @@ def registro_orden(request):
 
     for cat in categorias:
         cid = cat.get("id")
-        cat["precio_base"] = precios_por_categoria.get(
-            cid, precios_respaldo.get(cid, 5.00)
-        )
+        cat["precio_base"] = precios_por_categoria.get(cid, 0.0)
 
     contexto = {
         "clientes": clientes,
         "vehiculos": vehiculos,
-        "categorias": categorias[:5],
+        "categorias": categorias,
+        "servicios_base": servicios_base,
+        "matriz": matriz,
         "adicionales": adicionales,
         "bahias": bahias,
         "proxima_bahia": proxima_bahia,
         "bahias_libres_count": bahias_libres_count,
         "patio_lleno": patio_lleno,
+        "recepcion_abierta": recepcion_abierta,
+        "en_ventana_prorroga": en_ventana_prorroga,
+        "hora_sv": hora_sv_str,
+        "mensaje_horario": mensaje_horario,
     }
     return render(request, "registro_orden.html", contexto)
 
@@ -864,6 +938,7 @@ def modulo_clientes(request):
                         "placa": placa_norm,
                         "marca": (request.POST.get("marca") or "").strip(),
                         "modelo": (request.POST.get("modelo") or "").strip(),
+                        "color": (request.POST.get("color") or "").strip(),
                     },
                     timeout=5,
                 )
@@ -911,6 +986,7 @@ def modulo_clientes(request):
 
 @cajero_o_admin
 def modulo_finanzas(request):
+    hoy = ahora_sv().date()
     ordenes_todas = obtener_json("/ordenes/")
     pagos_todos = obtener_json("/finanzas/pagos")
     comisiones_todas = obtener_json("/finanzas/comisiones")
@@ -1003,25 +1079,21 @@ def modulo_finanzas(request):
         if es_fecha_de_hoy(p.get("fecha_pago", ""))
     }
 
-    # Incluir todas las órdenes de hoy MÁS cualquier orden de días anteriores que siga abierta
+    # Filtrar estrictamente órdenes de HOY (más cualquier orden cuyo pago se haya registrado hoy),
+    # sin arrastrar órdenes viejas de días anteriores ni órdenes pospuestas para mañana
     ordenes_turno = []
     for o in ordenes_todas:
         oid = o.get("id")
-        es_de_hoy = es_fecha_de_hoy(o.get("created_at", ""))
-        estado_o = o.get("estado", "Pendiente")
-        sigue_abierta = (
-            estado_o in ["Pendiente", "En proceso"]
-            or (oid not in ordenes_pagadas_ids)
-            or (oid not in ordenes_comisionadas_ids)
-        )
-        if es_de_hoy or sigue_abierta or (oid in pagos_hoy_orden_ids):
+        fecha_orden = fecha_iso_a_sv(o.get("created_at", "")).date()
+        es_de_hoy = (fecha_orden == hoy)
+        if es_de_hoy or (oid in pagos_hoy_orden_ids):
             ordenes_turno.append(o)
 
     ordenes_turno_ids = {o.get("id") for o in ordenes_turno}
     ordenes_hoy_ids = {
         o.get("id")
         for o in ordenes_todas
-        if es_fecha_de_hoy(o.get("created_at", ""))
+        if fecha_iso_a_sv(o.get("created_at", "")).date() == hoy
     }
 
     ordenes_info = []
@@ -1029,7 +1101,8 @@ def modulo_finanzas(request):
         oid = o.get("id")
         es_de_hoy = oid in ordenes_hoy_ids
         v = veh_dict.get(o.get("vehiculo_id"), {})
-        c = cli_dict.get(v.get("cliente_id"), {})
+        cliente_id_orden = o.get("cliente_id") or v.get("cliente_id")
+        c = cli_dict.get(cliente_id_orden, {})
         cat = cat_dict.get(v.get("categoria_vehiculo_id"), {})
         estado_actual = o.get("estado", "Pendiente")
         cobrable = estado_actual not in ["Pendiente", "En proceso"]
@@ -1041,8 +1114,8 @@ def modulo_finanzas(request):
             "id_formateado": f"{oid or 0:08d}",
             "vehiculo_info": f"{v.get('placa', 'S/P')} ({v.get('marca', '')} {v.get('modelo', '')})".strip(),
             "cliente_nombre": c.get("nombre_completo", "Cliente General"),
-            "categoria_nombre": cat.get("nombre", "Sedán"),
-            "comision_base": float(cat.get("comision_base", 2.50)),
+            "categoria_nombre": cat.get("nombre", ""),
+            "comision_base": float(cat.get("comision_base", 0.0)),
             "total_pagar": float(o.get("total_pagar", 0)),
             "estado": estado_actual,
             "es_rezagada": not es_de_hoy,
@@ -1359,6 +1432,13 @@ def modulo_usuarios(request):
 @login_requerido
 def modulo_inventario(request):
     if request.method == "POST":
+        if request.session.get("rol_id") != 1:
+            messages.error(
+                request,
+                "Acceso denegado: Solo el Administrador General tiene permisos para modificar el inventario.",
+            )
+            return redirect("inventario")
+
         accion = request.POST.get("accion")
         try:
             if accion == "crear_insumo":

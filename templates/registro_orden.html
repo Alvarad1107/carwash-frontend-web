@@ -4,19 +4,37 @@
 {% block content %}
 {% if messages %}
     {% for message in messages %}
-    <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-success{% endif %} alert-dismissible fade show rounded-3 shadow-sm mb-4 border-0" role="alert">
-        <i class="bi {% if message.tags == 'error' %}bi-exclamation-octagon-fill{% else %}bi-check-circle-fill{% endif %} me-2"></i>
+    <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'warning' %}alert-warning{% else %}alert-success{% endif %} alert-dismissible fade show rounded-3 shadow-sm mb-4 border-0" role="alert">
+        <i class="bi {% if message.tags == 'error' %}bi-exclamation-octagon-fill{% elif message.tags == 'warning' %}bi-clock-history{% else %}bi-check-circle-fill{% endif %} me-2"></i>
         <strong>{{ message }}</strong>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
     {% endfor %}
 {% endif %}
 
+{% if not recepcion_abierta %}
+<div class="alert alert-danger d-flex align-items-center justify-content-between flex-wrap gap-2 rounded-3 shadow-sm mb-4 border-0" role="alert">
+    <div>
+        <i class="bi bi-clock-fill me-2"></i>
+        <strong>Recepción Cerrada (Hora actual SV: {{ hora_sv }}):</strong> {{ mensaje_horario|default:"El horario estricto para recibir vehículos es de 7:00 AM a 5:00 PM." }}
+    </div>
+    <span class="badge bg-danger text-white px-3 py-2">Horario: 7:00 AM - 5:00 PM</span>
+</div>
+{% elif en_ventana_prorroga %}
+<div class="alert alert-warning d-flex align-items-center justify-content-between flex-wrap gap-2 rounded-3 shadow-sm mb-4 border-0" role="alert">
+    <div>
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <strong>Aviso de horario (4:45 PM - 5:00 PM | Hora SV: {{ hora_sv }}):</strong> Esta orden se registrará en el sistema pero aparecerá programada automáticamente para el día siguiente a las 7:00 AM.
+    </div>
+    <span class="badge bg-warning text-dark px-3 py-2">Programación Día Siguiente</span>
+</div>
+{% endif %}
+
 {% if patio_lleno %}
 <div class="alert alert-danger d-flex align-items-center justify-content-between flex-wrap gap-2 rounded-3 shadow-sm mb-4 border-0" role="alert">
     <div>
         <i class="bi bi-cone-striped me-2"></i>
-        <strong>Capacidad máxima alcanzada (6/6 bahías ocupadas):</strong> Todos los espacios de lavado están en uso. Finaliza una orden en el Monitor para habilitar nuevos ingresos.
+        <strong>Capacidad máxima alcanzada (bahías ocupadas):</strong> Todos los espacios de lavado disponibles están en uso. Finaliza o pospone una orden en el Monitor para habilitar nuevos ingresos.
     </div>
     <a href="{% url 'monitor' %}" class="btn btn-sm btn-danger px-3">Ir al Monitor</a>
 </div>
@@ -27,9 +45,9 @@
     <input type="hidden" name="accion" value="generar_orden">
     <input type="hidden" name="cliente_id" id="inputClienteId" value="{{ clientes.0.id|default:1 }}">
     <input type="hidden" name="categoria_vehiculo_id" id="inputCategoriaId" value="{{ categorias.0.id|default:1 }}">
-    <input type="hidden" name="subtotal" id="inputSubtotal" value="8.00">
-    <input type="hidden" name="impuestos" id="inputImpuestos" value="1.04">
-    <input type="hidden" name="total_pagar" id="inputTotalPagar" value="9.04">
+    <input type="hidden" name="subtotal" id="inputSubtotal" value="0.00">
+    <input type="hidden" name="impuestos" id="inputImpuestos" value="0.00">
+    <input type="hidden" name="total_pagar" id="inputTotalPagar" value="0.00">
 
     <div class="row g-4 align-items-start">
         
@@ -38,7 +56,7 @@
             <div class="card card-sprint p-4">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div class="d-flex align-items-center gap-2">
-                        <h6 class="fw-bold text-dark mb-0">Cliente</h6>
+                        <h6 class="fw-bold text-dark mb-0">Cliente / Autorizado</h6>
                         <span class="badge bg-light text-secondary border">{{ clientes|length }}</span>
                     </div>
                     <button type="button" class="btn btn-primary btn-sm px-2 py-1" data-bs-toggle="modal" data-bs-target="#modalNuevoCliente" title="Registrar nuevo cliente">
@@ -90,7 +108,7 @@
             <div class="card card-sprint p-4">
                 <h6 class="fw-bold mb-3 text-dark">Vehículo y Servicios</h6>
                 
-                <!-- Selector Visual de Tipo de Auto -->
+                <!-- Selector Visual de Tipo de Auto (100% desde GET /categorias-vehiculos/) -->
                 <span class="kpi-label mb-2">Categoría del Vehículo</span>
                 <div class="row g-2 mb-3 text-center">
                     {% for cat in categorias %}
@@ -100,9 +118,9 @@
                              data-id="{{ cat.id }}"
                              data-nombre="{{ cat.nombre }}"
                              data-precio="{{ cat.precio_base|stringformat:'.2f' }}">
-                            <i class="bi {% if 'Pick' in cat.nombre or 'Grande' in cat.nombre %}bi-truck-front{% elif 'Micro' in cat.nombre %}bi-bus-front{% else %}bi-car-front-fill{% endif %} fs-4 {% if forloop.first %}text-primary{% else %}text-muted{% endif %} d-block mb-1 icono-cat"></i>
+                            <i class="bi {% if 'Pick' in cat.nombre or 'Grande' in cat.nombre %}bi-truck-front{% elif 'Micro' in cat.nombre %}bi-bus-front{% elif 'Moto' in cat.nombre %}bi-bicycle{% else %}bi-car-front-fill{% endif %} fs-4 {% if forloop.first %}text-primary{% else %}text-muted{% endif %} d-block mb-1 icono-cat"></i>
                             <span class="d-block fw-bold text-dark text-truncate" style="font-size: 0.8rem;">{{ cat.nombre }}</span>
-                            <span class="d-block text-muted" style="font-size: 0.74rem;">
+                            <span class="d-block text-muted etiqueta-precio-cat" style="font-size: 0.74rem;">
                                 Base: ${{ cat.precio_base|floatformat:2 }}
                             </span>
                         </div>
@@ -110,10 +128,20 @@
                     {% endfor %}
                 </div>
 
-                <!-- Vehículos Registrados del Cliente Seleccionado (Chips 1 Cliente -> N Vehículos) -->
+                <!-- Selector de Servicio Base (Tabla 5.1 desde GET /servicios/base) -->
+                <div class="mb-3 text-start">
+                    <label class="label-sprint">Servicio Principal (Tabla 5.1)</label>
+                    <select name="servicio_base_id" id="selectServicioBase" class="form-select fw-semibold text-dark">
+                        {% for sb in servicios_base %}
+                        <option value="{{ sb.id }}" data-nombre="{{ sb.nombre }}">{{ sb.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Placas Registradas en Catálogo (Accesos Rápidos por Placa + Nueva Placa) -->
                 <div class="mb-3">
                     <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="kpi-label mb-0">Vehículos del Cliente</span>
+                        <span class="kpi-label mb-0">Placas Registradas (Acceso Rápido)</span>
                         <small id="avisoAutocompletadoPlaca" class="text-primary fw-semibold d-none" style="font-size: 0.75rem;">
                             <i class="bi bi-magic me-1"></i>Autocompletado por placa
                         </small>
@@ -154,30 +182,36 @@
                         <small id="errPlacaEnLavado" class="text-danger fw-medium d-none mt-1 d-block"></small>
                     </div>
                     <div class="col-md-6 text-start">
-                        <label class="label-sprint">Bahía Asignada (1 a 6)</label>
+                        <label class="label-sprint">Bahía Asignada</label>
                         <input type="hidden" name="bahia_id" value="{{ proxima_bahia.id|default:0 }}">
                         {% if not patio_lleno and proxima_bahia %}
                         <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-3 border bg-light" style="min-height: 40px;">
                             <i class="bi bi-check-circle-fill text-success"></i>
-                            <span class="fw-semibold text-dark small">Automática: {{ proxima_bahia.nombre }} <span class="text-muted fw-normal">({{ bahias_libres_count }}/6 libres)</span></span>
+                            <span class="fw-semibold text-dark small">Automática: {{ proxima_bahia.nombre }} <span class="text-muted fw-normal">({{ bahias_libres_count }} libres)</span></span>
                         </div>
                         {% else %}
                         <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-3 border border-danger bg-danger bg-opacity-10" style="min-height: 40px;">
                             <i class="bi bi-slash-circle-fill text-danger"></i>
-                            <span class="fw-semibold text-danger small">Sin espacio (6/6 ocupadas)</span>
+                            <span class="fw-semibold text-danger small">Sin espacio disponible</span>
                         </div>
                         {% endif %}
                     </div>
-                    <div class="col-6 text-start">
+                    <div class="col-md-4 text-start">
                         <label class="label-sprint">Marca</label>
                         <div class="input-group input-sprint-container">
-                            <input type="text" name="marca" id="inputMarca" class="form-control" placeholder="Toyota" required>
+                            <input type="text" name="marca" id="inputMarca" class="form-control" placeholder="Ej. Toyota" required>
                         </div>
                     </div>
-                    <div class="col-6 text-start">
+                    <div class="col-md-4 text-start">
                         <label class="label-sprint">Modelo</label>
                         <div class="input-group input-sprint-container">
-                            <input type="text" name="modelo" id="inputModelo" class="form-control" placeholder="Corolla" required>
+                            <input type="text" name="modelo" id="inputModelo" class="form-control" placeholder="Ej. Corolla" required>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-start">
+                        <label class="label-sprint">Color</label>
+                        <div class="input-group input-sprint-container" id="boxInputColor">
+                            <input type="text" name="color" id="inputColor" class="form-control" placeholder="Ej. Blanco, Negro, Gris" required>
                         </div>
                     </div>
                 </div>
@@ -214,12 +248,12 @@
                 
                 <div class="panel-facturacion-box mb-3">
                     <div class="mb-2 pb-2 border-bottom" style="border-color: #334155 !important;">
-                        <span class="d-block text-uppercase" style="font-size: 0.7rem; color: #94a3b8; letter-spacing: 0.05em;">Cliente</span>
+                        <span class="d-block text-uppercase" style="font-size: 0.7rem; color: #94a3b8; letter-spacing: 0.05em;">Cliente de la Orden</span>
                         <span class="fw-bold text-white fs-6" id="resumenCliente">{{ clientes.0.nombre_completo|default:"Seleccione un cliente" }}</span>
                     </div>
                     <div>
                         <span class="d-block text-uppercase" style="font-size: 0.7rem; color: #94a3b8; letter-spacing: 0.05em;">Vehículo</span>
-                        <span class="fw-semibold text-white d-block" id="resumenAutoTexto">Vehículo ({{ categorias.0.nombre|default:"Sedán" }})</span>
+                        <span class="fw-semibold text-white d-block" id="resumenAutoTexto">Vehículo ({{ categorias.0.nombre|default:"" }})</span>
                         <div class="d-flex justify-content-between align-items-center mt-1">
                             <span class="small" style="color: #cbd5e1;" id="resumenPlacaTexto">Placa: ---</span>
                             <span class="badge {% if patio_lleno %}bg-danger{% else %}bg-success bg-opacity-25 text-white border border-success border-opacity-50{% endif %}" style="font-size: 0.72rem;">
@@ -232,8 +266,8 @@
                 <div class="px-1 mb-3">
                     <span class="d-block text-uppercase mb-2" style="font-size: 0.7rem; color: #94a3b8; letter-spacing: 0.05em;">Desglose de Servicios</span>
                     <div class="d-flex justify-content-between mb-2 small">
-                        <span style="color: #cbd5e1;" id="resumenServicioBaseNombre">Lavado Básico ({{ categorias.0.nombre|default:"Sedán" }})</span>
-                        <span class="fw-semibold text-white" id="resumenServicioBasePrecio">$8.00</span>
+                        <span style="color: #cbd5e1;" id="resumenServicioBaseNombre">{{ servicios_base.0.nombre|default:"Servicio Base" }} ({{ categorias.0.nombre|default:"" }})</span>
+                        <span class="fw-semibold text-white" id="resumenServicioBasePrecio">$0.00</span>
                     </div>
                     
                     <div id="contenedorExtrasResumen"></div>
@@ -242,21 +276,21 @@
                     
                     <div class="d-flex justify-content-between mb-1 small">
                         <span style="color: #94a3b8;">Subtotal</span>
-                        <span class="text-white" id="resumenSubtotal">$8.00</span>
+                        <span class="text-white" id="resumenSubtotal">$0.00</span>
                     </div>
                     <div class="d-flex justify-content-between mb-3 small">
                         <span style="color: #94a3b8;">Impuestos (13% IVA)</span>
-                        <span class="text-white" id="resumenImpuestos">$1.04</span>
+                        <span class="text-white" id="resumenImpuestos">$0.00</span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center pt-3 border-top" style="border-color: #334155 !important;">
                         <span class="fw-bold text-uppercase small" style="color: #cbd5e1; letter-spacing: 0.04em;">Total a Pagar</span>
-                        <span class="fw-bold text-white fs-2" id="resumenTotal">$9.04</span>
+                        <span class="fw-bold text-white fs-2" id="resumenTotal">$0.00</span>
                     </div>
                 </div>
 
-                <button type="submit" id="btnGenerarOrden" class="btn btn-primary w-100 py-3 d-flex justify-content-center align-items-center gap-2" {% if patio_lleno %}disabled{% endif %}>
-                    <span>Generar Orden de Lavado</span>
-                    <i class="bi bi-arrow-right"></i>
+                <button type="submit" id="btnGenerarOrden" class="btn btn-primary w-100 py-3 d-flex justify-content-center align-items-center gap-2" {% if patio_lleno or not recepcion_abierta %}disabled{% endif %}>
+                    <span>{% if not recepcion_abierta %}Recepción Cerrada (7:00 AM - 5:00 PM){% else %}Generar Orden de Lavado{% endif %}</span>
+                    <i class="bi {% if not recepcion_abierta %}bi-lock-fill{% else %}bi-arrow-right{% endif %}"></i>
                 </button>
             </div>
         </div>
@@ -365,7 +399,19 @@
         {% endfor %}
     ];
 
+    const MATRIZ_PRECIOS = [
+        {% for m in matriz %}
+        {
+            categoria_vehiculo_id: {{ m.categoria_vehiculo_id }},
+            servicio_base_id: {{ m.servicio_base_id }},
+            precio_base: {{ m.precio_base|stringformat:".2f" }}
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
     const PATIO_LLENO = {{ patio_lleno|yesno:"true,false" }};
+    const RECEPCION_ABIERTA = {{ recepcion_abierta|yesno:"true,false" }};
+    const EN_VENTANA_PRORROGA = {{ en_ventana_prorroga|yesno:"true,false" }};
 
     const VEHICULOS_REGISTRADOS = [
         {% for v in vehiculos %}
@@ -376,12 +422,32 @@
             placa: "{{ v.placa|default:''|upper|escapejs }}",
             marca: "{{ v.marca|default:''|escapejs }}",
             modelo: "{{ v.modelo|default:''|escapejs }}",
+            color: "{{ v.color|default:''|escapejs }}",
             en_lavado: {{ v.en_lavado|yesno:"true,false" }},
             bahia_activa: "{{ v.bahia_activa }}",
             estado_activo: "{{ v.estado_activo|escapejs }}"
         }{% if not forloop.last %},{% endif %}
         {% endfor %}
     ];
+
+    function obtenerPrecioMatriz(catId, srvBaseId) {
+        const item = MATRIZ_PRECIOS.find(
+            m => m.categoria_vehiculo_id === parseInt(catId) && m.servicio_base_id === parseInt(srvBaseId)
+        );
+        return item ? parseFloat(item.precio_base) : 0.0;
+    }
+
+    function actualizarEtiquetasPreciosCategorias() {
+        const selSrv = document.getElementById('selectServicioBase');
+        const srvId = selSrv ? parseInt(selSrv.value || '1') : 1;
+        document.querySelectorAll('.tarjeta-categoria').forEach(card => {
+            const cid = parseInt(card.dataset.id || '1');
+            const precio = obtenerPrecioMatriz(cid, srvId);
+            card.dataset.precio = precio.toFixed(2);
+            const lbl = card.querySelector('.etiqueta-precio-cat');
+            if (lbl) lbl.innerText = `Base: $${precio.toFixed(2)}`;
+        });
+    }
 
     function sincronizarPlacaCompletaPOS() {
         const selPref = document.getElementById('selectPrefijoPlaca');
@@ -439,16 +505,18 @@
         } else {
             boxPlaca.classList.remove('input-invalid');
             errPlaca.classList.add('d-none');
-            btnGenerar.disabled = PATIO_LLENO;
-            return !PATIO_LLENO;
+            btnGenerar.disabled = PATIO_LLENO || !RECEPCION_ABIERTA;
+            return !(PATIO_LLENO || !RECEPCION_ABIERTA);
         }
     }
 
     const primeraTarjeta = document.querySelector('.tarjeta-categoria');
-    let categoriaActualNombre = primeraTarjeta ? primeraTarjeta.dataset.nombre : "{{ categorias.0.nombre|default:'Sedán' }}";
-    let precioBaseActual = primeraTarjeta ? (parseFloat(primeraTarjeta.dataset.precio) || 4.00) : 4.00;
+    let categoriaActualNombre = primeraTarjeta ? primeraTarjeta.dataset.nombre : "{{ categorias.0.nombre|default:'' }}";
+    let precioBaseActual = primeraTarjeta ? (parseFloat(primeraTarjeta.dataset.precio) || 0.00) : 0.00;
+    let clienteFijadoManualmente = false;
 
     function seleccionarTarjetaCategoriaPorId(catId) {
+        actualizarEtiquetasPreciosCategorias();
         const tarjeta = document.querySelector(`.tarjeta-categoria[data-id="${catId}"]`);
         if (!tarjeta) return;
         document.querySelectorAll('.tarjeta-categoria').forEach(c => {
@@ -461,7 +529,9 @@
         tarjeta.querySelector('.icono-cat').classList.add('text-primary');
 
         categoriaActualNombre = tarjeta.dataset.nombre;
-        precioBaseActual = parseFloat(tarjeta.dataset.precio) || 4.00;
+        const selSrv = document.getElementById('selectServicioBase');
+        const srvId = selSrv ? parseInt(selSrv.value || '1') : 1;
+        precioBaseActual = obtenerPrecioMatriz(catId, srvId);
         document.getElementById('inputCategoriaId').value = tarjeta.dataset.id;
     }
 
@@ -480,46 +550,56 @@
 
     function renderizarChipsVehiculosCliente(clienteId, placaActiva = null, autoRellenarPrimero = false) {
         const contenedor = document.getElementById('contenedorVehiculosCliente');
-        const autosCliente = VEHICULOS_REGISTRADOS.filter(v => v.cliente_id === parseInt(clienteId));
+        const cidNum = parseInt(clienteId || '0');
+        // Ordenar placas mostrando primero las que este cliente ha traído antes y luego el resto del catálogo
+        const autosDelCliente = VEHICULOS_REGISTRADOS.filter(v => v.cliente_id === cidNum);
+        const otrosAutos = VEHICULOS_REGISTRADOS.filter(v => v.cliente_id !== cidNum);
+        const listaPlacas = [...autosDelCliente, ...otrosAutos];
         contenedor.innerHTML = '';
 
-        const primerAutoLibre = autosCliente.find(v => !v.en_lavado) || null;
+        const primerAutoLibre = autosDelCliente.find(v => !v.en_lavado) || listaPlacas.find(v => !v.en_lavado) || null;
+        const placaPrevia = sincronizarPlacaCompletaPOS();
+        const placaSeleccionada = placaActiva ? placaActiva.toUpperCase() : (placaPrevia || (autoRellenarPrimero && primerAutoLibre ? primerAutoLibre.placa : ''));
 
-        autosCliente.forEach((v) => {
+        listaPlacas.forEach((v) => {
             const btn = document.createElement('button');
             btn.type = 'button';
-            const esActivo = placaActiva
-                ? (v.placa === placaActiva.toUpperCase())
-                : (autoRellenarPrimero && primerAutoLibre && v.id === primerAutoLibre.id);
+            const esActivo = placaSeleccionada && (v.placa === placaSeleccionada);
             btn.className = 'chip-vehiculo-cliente' + (esActivo ? ' active' : '');
             const desc = `${v.marca} ${v.modelo}`.trim() || 'Vehículo';
+            const colorTxt = v.color ? ` (${v.color})` : '';
             const badgeLavado = v.en_lavado ? ` <span class="text-danger fw-bold">[En Bahía ${v.bahia_activa}]</span>` : '';
-            btn.innerHTML = `<i class="bi bi-car-front me-1"></i>${v.placa} • ${desc}${badgeLavado}`;
+            btn.innerHTML = `<i class="bi bi-car-front me-1"></i>${v.placa} • ${desc}${colorTxt}${badgeLavado}`;
             btn.addEventListener('click', function() {
                 document.querySelectorAll('.chip-vehiculo-cliente').forEach(c => c.classList.remove('active'));
                 this.classList.add('active');
                 asignarPlacaEnCamposPOS(v.placa);
                 document.getElementById('inputMarca').value = v.marca;
                 document.getElementById('inputModelo').value = v.modelo;
+                document.getElementById('inputColor').value = v.color || '';
                 document.getElementById('avisoAutocompletadoPlaca').classList.add('d-none');
                 seleccionarTarjetaCategoriaPorId(v.categoria_vehiculo_id);
+                if (!clienteFijadoManualmente && v.cliente_id) {
+                    seleccionarClienteVisualmente(v.cliente_id);
+                }
                 verificarPlacaEnLavado();
                 actualizarResumen();
             });
             contenedor.appendChild(btn);
         });
 
-        const activarNuevo = !placaActiva && (autosCliente.length === 0 || (autoRellenarPrimero && !primerAutoLibre));
+        const activarNuevo = !placaSeleccionada;
         const btnNuevo = document.createElement('button');
         btnNuevo.type = 'button';
         btnNuevo.className = 'chip-vehiculo-cliente' + (activarNuevo ? ' active' : '');
-        btnNuevo.innerHTML = `<i class="bi bi-plus-lg me-1"></i>Nuevo vehículo`;
+        btnNuevo.innerHTML = `<i class="bi bi-plus-lg me-1"></i>Nueva placa`;
         btnNuevo.addEventListener('click', function() {
             document.querySelectorAll('.chip-vehiculo-cliente').forEach(c => c.classList.remove('active'));
             this.classList.add('active');
             asignarPlacaEnCamposPOS('');
             document.getElementById('inputMarca').value = '';
             document.getElementById('inputModelo').value = '';
+            document.getElementById('inputColor').value = '';
             document.getElementById('avisoAutocompletadoPlaca').classList.add('d-none');
             document.getElementById('inputCuerpoPlaca').focus();
             verificarPlacaEnLavado();
@@ -527,16 +607,18 @@
         });
         contenedor.appendChild(btnNuevo);
 
-        if (autoRellenarPrimero && !placaActiva) {
+        if (autoRellenarPrimero && !placaActiva && !placaPrevia) {
             if (primerAutoLibre) {
                 asignarPlacaEnCamposPOS(primerAutoLibre.placa);
                 document.getElementById('inputMarca').value = primerAutoLibre.marca;
                 document.getElementById('inputModelo').value = primerAutoLibre.modelo;
+                document.getElementById('inputColor').value = primerAutoLibre.color || '';
                 seleccionarTarjetaCategoriaPorId(primerAutoLibre.categoria_vehiculo_id);
             } else {
                 asignarPlacaEnCamposPOS('');
                 document.getElementById('inputMarca').value = '';
                 document.getElementById('inputModelo').value = '';
+                document.getElementById('inputColor').value = '';
             }
         }
         verificarPlacaEnLavado();
@@ -547,10 +629,23 @@
     document.querySelectorAll('.item-cliente-caja').forEach(item => {
         item.addEventListener('click', function(e) {
             if (e.target.closest('.btn-editar-cliente-pos')) return;
+            clienteFijadoManualmente = true;
             const cid = parseInt(this.dataset.id);
             seleccionarClienteVisualmente(cid);
             document.getElementById('avisoAutocompletadoPlaca').classList.add('d-none');
-            renderizarChipsVehiculosCliente(cid, null, true);
+            const placaActual = sincronizarPlacaCompletaPOS();
+            const autosCliente = VEHICULOS_REGISTRADOS.filter(v => v.cliente_id === cid && !v.en_lavado);
+            if (!placaActual && autosCliente.length > 0) {
+                const v0 = autosCliente[0];
+                asignarPlacaEnCamposPOS(v0.placa);
+                document.getElementById('inputMarca').value = v0.marca;
+                document.getElementById('inputModelo').value = v0.modelo;
+                document.getElementById('inputColor').value = v0.color || '';
+                seleccionarTarjetaCategoriaPorId(v0.categoria_vehiculo_id);
+                renderizarChipsVehiculosCliente(cid, v0.placa, false);
+            } else {
+                renderizarChipsVehiculosCliente(cid, placaActual || null, false);
+            }
         });
     });
 
@@ -576,12 +671,18 @@
         });
     });
 
-    // 3. Selección de Categoría de Vehículo
+    // 3. Selección de Categoría de Vehículo y Servicio Base
     document.querySelectorAll('.tarjeta-categoria').forEach(card => {
         card.addEventListener('click', function() {
             seleccionarTarjetaCategoriaPorId(this.dataset.id);
             actualizarResumen();
         });
+    });
+
+    document.getElementById('selectServicioBase').addEventListener('change', function() {
+        const catId = document.getElementById('inputCategoriaId').value;
+        seleccionarTarjetaCategoriaPorId(catId);
+        actualizarResumen();
     });
 
     // 4. Autocompletado Inteligente al cambiar Prefijo o escribir Código en Placa
@@ -595,9 +696,13 @@
         if (vehiculoMatch) {
             document.getElementById('inputMarca').value = vehiculoMatch.marca;
             document.getElementById('inputModelo').value = vehiculoMatch.modelo;
+            document.getElementById('inputColor').value = vehiculoMatch.color || '';
             seleccionarTarjetaCategoriaPorId(vehiculoMatch.categoria_vehiculo_id);
-            seleccionarClienteVisualmente(vehiculoMatch.cliente_id);
-            renderizarChipsVehiculosCliente(vehiculoMatch.cliente_id, vehiculoMatch.placa, false);
+            if (!clienteFijadoManualmente && vehiculoMatch.cliente_id) {
+                seleccionarClienteVisualmente(vehiculoMatch.cliente_id);
+            }
+            const cidActual = document.getElementById('inputClienteId').value;
+            renderizarChipsVehiculosCliente(cidActual, vehiculoMatch.placa, false);
             aviso.classList.remove('d-none');
         } else {
             aviso.classList.add('d-none');
@@ -609,7 +714,7 @@
     document.getElementById('selectPrefijoPlaca').addEventListener('change', procesarCambioPlacaPOS);
     document.getElementById('inputCuerpoPlaca').addEventListener('input', procesarCambioPlacaPOS);
 
-    ['inputMarca', 'inputModelo'].forEach(id => {
+    ['inputMarca', 'inputModelo', 'inputColor'].forEach(id => {
         document.getElementById(id).addEventListener('input', actualizarResumen);
     });
     document.querySelectorAll('.switch-extra').forEach(sw => {
@@ -620,11 +725,18 @@
         const placa = document.getElementById('inputPlaca').value.toUpperCase() || '---';
         const marca = document.getElementById('inputMarca').value.trim();
         const modelo = document.getElementById('inputModelo').value.trim();
-        const nombreAuto = (marca || modelo) ? `${marca} ${modelo}`.trim() : 'Vehículo';
+        const color = document.getElementById('inputColor').value.trim();
+        const nombreAutoBase = (marca || modelo) ? `${marca} ${modelo}`.trim() : 'Vehículo';
+        const nombreAuto = color ? `${nombreAutoBase} - ${color}` : nombreAutoBase;
+
+        const selSrv = document.getElementById('selectServicioBase');
+        const srvNombre = (selSrv && selSrv.options[selSrv.selectedIndex])
+            ? selSrv.options[selSrv.selectedIndex].dataset.nombre
+            : 'Servicio Base';
 
         document.getElementById('resumenAutoTexto').innerText = `${nombreAuto} (${categoriaActualNombre})`;
         document.getElementById('resumenPlacaTexto').innerText = `Placa: ${placa}`;
-        document.getElementById('resumenServicioBaseNombre').innerText = `Lavado Básico (${categoriaActualNombre})`;
+        document.getElementById('resumenServicioBaseNombre').innerText = `${srvNombre} (${categoriaActualNombre})`;
         document.getElementById('resumenServicioBasePrecio').innerText = `$${precioBaseActual.toFixed(2)}`;
 
         let subtotal = precioBaseActual;
@@ -739,7 +851,17 @@
     // 6. Confirmación SweetAlert2 al Generar Orden
     document.getElementById('formGenerarOrden').addEventListener('submit', function(e) {
         e.preventDefault();
+        if (!RECEPCION_ABIERTA) {
+            Swal.fire({
+                title: 'Recepción Cerrada',
+                text: 'El horario para recibir vehículos es de 7:00 AM a 5:00 PM.',
+                icon: 'error',
+                confirmButtonColor: '#dc2626'
+            });
+            return false;
+        }
         const placa = sincronizarPlacaCompletaPOS();
+        const colorVal = (document.getElementById('inputColor').value || '').trim();
         if (!esPlacaValidaSV(placa) || !verificarPlacaEnLavado()) {
             if (!esPlacaValidaSV(placa)) {
                 document.getElementById('boxInputPlaca').classList.add('input-invalid');
@@ -750,10 +872,24 @@
             }
             return false;
         }
+        if (!colorVal || colorVal.toUpperCase() === 'N/A') {
+            document.getElementById('boxInputColor').classList.add('input-invalid');
+            document.getElementById('inputColor').focus();
+            return false;
+        }
+        document.getElementById('boxInputColor').classList.remove('input-invalid');
+
         const form = this;
         const cliente = document.getElementById('resumenCliente').innerText;
         const vehiculo = document.getElementById('resumenAutoTexto').innerText;
+        const servicio = document.getElementById('resumenServicioBaseNombre').innerText;
         const total = document.getElementById('resumenTotal').innerText;
+        const alertaProrrogaHtml = EN_VENTANA_PRORROGA
+            ? `<div class="alert alert-warning text-start small py-2 px-3 mt-2 mb-0 border border-warning">
+                   <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                   <strong>Aviso de horario (4:45 PM - 5:00 PM):</strong> Esta orden se registrará en el sistema pero aparecerá programada para el día siguiente.
+               </div>`
+            : '';
 
         Swal.fire({
             title: '¿Generar nueva orden de lavado?',
@@ -761,10 +897,12 @@
                 <div class="text-start small bg-light p-3 rounded-3 border mt-2">
                     <div class="mb-1"><strong>Cliente:</strong> ${cliente}</div>
                     <div class="mb-1"><strong>Vehículo:</strong> ${vehiculo} (${placa})</div>
+                    <div class="mb-1"><strong>Servicio Base:</strong> ${servicio}</div>
                     <div><strong>Total con impuestos:</strong> <span class="text-primary fw-bold">${total}</span></div>
                 </div>
+                ${alertaProrrogaHtml}
             `,
-            icon: 'question',
+            icon: EN_VENTANA_PRORROGA ? 'warning' : 'question',
             showCancelButton: true,
             confirmButtonColor: '#2563eb',
             cancelButtonColor: '#64748b',
@@ -778,7 +916,10 @@
         });
     });
 
-    // Inicializar vista con el primer cliente y sus vehículos registrados
+    // Inicializar precios desde matriz y vista con el primer cliente y sus vehículos registrados
+    if (primeraTarjeta) {
+        seleccionarTarjetaCategoriaPorId(primeraTarjeta.dataset.id);
+    }
     const clienteInicialId = document.getElementById('inputClienteId').value;
     if (clienteInicialId) {
         renderizarChipsVehiculosCliente(clienteInicialId, null, true);

@@ -267,7 +267,7 @@
                         <label class="label-sprint">Cajero Responsable</label>
                         <select name="cajero_id" class="form-select" required>
                             {% for u in usuarios %}
-                            <option value="{{ u.id }}">{{ u.nombre_completo }}</option>
+                            <option value="{{ u.id }}" {% if u.id == request.session.usuario_id %}selected{% endif %}>{{ u.nombre_completo }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -581,7 +581,7 @@
         if (enPatio > 0 || porCobrar > 0 || comisionesPendientes > 0) {
             let itemsPendientes = '';
             if (enPatio > 0) {
-                itemsPendientes += `<li class="mb-1"><strong>${enPatio}</strong> vehículo(s) en patio sin terminar lavado.</li>`;
+                itemsPendientes += `<li class="mb-1"><strong>${enPatio}</strong> vehículo(s) en patio sin terminar lavado <span class="text-muted">(si una orden sigue Pendiente al cierre, puedes posponerla para mañana 1 vez desde el <a href="{% url 'monitor' %}" class="fw-bold text-primary">Monitor</a>)</span>.</li>`;
             }
             if (porCobrar > 0) {
                 itemsPendientes += `<li class="mb-1"><strong>${porCobrar}</strong> orden(es) terminada(s) pendiente(s) de cobro en caja.</li>`;

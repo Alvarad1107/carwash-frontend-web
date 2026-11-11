@@ -5,8 +5,8 @@
 {% block content %}
 {% if messages %}
     {% for message in messages %}
-    <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-success{% endif %} alert-dismissible fade show rounded-3 shadow-sm mb-4 border-0" role="alert">
-        <i class="bi {% if message.tags == 'error' %}bi-exclamation-octagon-fill{% else %}bi-check-circle-fill{% endif %} me-2"></i>
+    <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'warning' %}alert-warning{% else %}alert-success{% endif %} alert-dismissible fade show rounded-3 shadow-sm mb-4 border-0" role="alert">
+        <i class="bi {% if message.tags == 'error' %}bi-exclamation-octagon-fill{% elif message.tags == 'warning' %}bi-clock-history{% else %}bi-check-circle-fill{% endif %} me-2"></i>
         <strong>{{ message }}</strong>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
@@ -119,20 +119,25 @@
                         <td>{{ orden.servicio_total }}</td>
                         <td class="text-muted">{{ orden.tiempo }}</td>
                         <td>
-                            {% if orden.estado == "En proceso" %}
-                                <span class="badge rounded-pill bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-1">EN PROCESO</span>
-                            {% elif orden.estado == "Pendiente" %}
-                                <span class="badge rounded-pill bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-3 py-1">PENDIENTE</span>
-                            {% else %}
-                                <span class="badge rounded-pill bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-1">TERMINADO</span>
-                            {% endif %}
+                            <div class="d-flex flex-wrap align-items-center gap-1">
+                                {% if orden.estado == "En proceso" %}
+                                    <span class="badge rounded-pill bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-1">EN PROCESO</span>
+                                {% elif orden.estado == "Pendiente" %}
+                                    <span class="badge rounded-pill bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-3 py-1">PENDIENTE</span>
+                                {% else %}
+                                    <span class="badge rounded-pill bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-1">TERMINADO</span>
+                                {% endif %}
+                                {% if orden.veces_pospuesta >= 1 %}
+                                    <span class="badge rounded-pill bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-2 py-1" title="Esta orden ya utilizó su única prórroga al día siguiente">[POSPUESTA 1/1]</span>
+                                {% endif %}
+                            </div>
                         </td>
                         <td class="text-end pe-4">
                             <div class="dropdown">
                                 <button class="btn btn-sm btn-light border px-2 py-1" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" title="Acciones de Orden">
                                     <i class="bi bi-three-dots"></i>
                                 </button>
-                                <ul class="dropdown-menu dropdown-menu-end shadow-sm border rounded-3 p-2" style="min-width: 230px;">
+                                <ul class="dropdown-menu dropdown-menu-end shadow-sm border rounded-3 p-2" style="min-width: 245px;">
                                     {% if orden.estado == "Pendiente" %}
                                         <li><h6 class="dropdown-header text-uppercase small fw-bold text-muted px-2 py-1">Cambiar estado a:</h6></li>
                                         <li>
@@ -154,6 +159,23 @@
                                                 </button>
                                             </form>
                                         </li>
+                                        <li><hr class="dropdown-divider my-1"></li>
+                                        {% if orden.veces_pospuesta == 0 %}
+                                        <li>
+                                            <form method="POST" action="{% url 'posponer_orden' orden.id %}" onsubmit="return confirmarPosponerOrden(event, this, '#{{ orden.id_formateado }}');">
+                                                {% csrf_token %}
+                                                <button type="submit" class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2 text-warning fw-semibold">
+                                                    <i class="bi bi-calendar-plus-fill text-warning"></i> Posponer para mañana (1 vez)
+                                                </button>
+                                            </form>
+                                        </li>
+                                        {% else %}
+                                        <li>
+                                            <span class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2 text-muted small">
+                                                <i class="bi bi-lock-fill text-warning"></i> Ya pospuesta [POSPUESTA 1/1]
+                                            </span>
+                                        </li>
+                                        {% endif %}
                                     {% elif orden.estado == "En proceso" %}
                                         <li><h6 class="dropdown-header text-uppercase small fw-bold text-muted px-2 py-1">Cambiar estado a:</h6></li>
                                         <li>
@@ -243,6 +265,26 @@
             confirmButtonColor: esTerminado ? '#16a34a' : '#2563eb',
             cancelButtonColor: '#64748b',
             confirmButtonText: esTerminado ? 'Sí, terminar y notificar' : 'Sí, actualizar',
+            cancelButtonText: 'Cancelar',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                form.submit();
+            }
+        });
+        return false;
+    }
+
+    function confirmarPosponerOrden(event, form, ordenCodigo) {
+        event.preventDefault();
+        Swal.fire({
+            title: '¿Posponer orden para mañana?',
+            html: `La orden <strong>${ordenCodigo}</strong> se reprogramará para mañana a las <strong>7:00 AM</strong> y liberará su bahía hoy para permitir el Corte de Caja.<br><br><span class="text-warning fw-bold">Nota: Cada orden solo puede posponerse máximo 1 vez.</span>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d97706',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Sí, posponer a mañana (1/1)',
             cancelButtonText: 'Cancelar',
             reverseButtons: true
         }).then((result) => {

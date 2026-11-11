@@ -12,6 +12,7 @@ from panel_admin.views import (
     modulo_finanzas,
     modulo_usuarios,
     monitor_operaciones,
+    posponer_orden_manana,
     registro_orden,
     modulo_inventario,
 )
@@ -25,6 +26,11 @@ urlpatterns = [
         "monitor/estado/<int:orden_id>/",
         cambiar_estado_orden,
         name="cambiar_estado_orden",
+    ),
+    path(
+        "monitor/posponer/<int:orden_id>/",
+        posponer_orden_manana,
+        name="posponer_orden",
     ),
     path("caja/", registro_orden, name="caja"),
     path("clientes/", modulo_clientes, name="clientes"),
