@@ -119,6 +119,8 @@
                                         <span class="badge rounded-pill bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">{{ o.estado }}</span>
                                     {% elif o.estado == 'Pendiente' %}
                                         <span class="badge rounded-pill bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25">{{ o.estado }}</span>
+                                    {% elif o.estado == 'Cancelada' %}
+                                        <span class="badge rounded-pill bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25">{{ o.estado }}</span>
                                     {% else %}
                                         <span class="badge rounded-pill bg-success bg-opacity-10 text-success border border-success border-opacity-25">{{ o.estado }}</span>
                                     {% endif %}

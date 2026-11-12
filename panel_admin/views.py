@@ -339,6 +339,8 @@ def monitor_operaciones(request):
         elif estado in ["Listo para entrega", "Terminado", "Pagado", "Entregado"]:
             conteo_terminados += 1
             tiempo_texto = "Cobrado / Entregado" if ya_pagada else "Listo para retiro"
+        elif estado == "Cancelada":
+            tiempo_texto = "Orden cancelada"
         else:
             tiempo_texto = "En patio"
 
@@ -423,6 +425,27 @@ def posponer_orden_manana(request, orden_id):
         except Exception as e:
             print(f"Error al posponer orden {orden_id}: {e}")
             messages.error(request, "Error de conexión con la API al posponer la orden.")
+    return redirect("monitor")
+
+
+@login_requerido
+def cancelar_orden(request, orden_id):
+    if request.method == "POST":
+        try:
+            res = requests.post(f"{API_URL}/ordenes/{orden_id}/cancelar", timeout=6)
+            if res.status_code == 200:
+                messages.success(
+                    request,
+                    f"Orden #{int(orden_id):08d} cancelada correctamente. La bahía ha sido liberada.",
+                )
+            else:
+                try:
+                    detalle = res.json().get("detail", "Error al cancelar la orden.")
+                except Exception:
+                    detalle = "Error al cancelar la orden."
+                messages.error(request, detalle)
+        except Exception as e:
+            messages.error(request, f"Error de conexión con la API: {e}")
     return redirect("monitor")
 
 
@@ -1083,6 +1106,8 @@ def modulo_finanzas(request):
     # sin arrastrar órdenes viejas de días anteriores ni órdenes pospuestas para mañana
     ordenes_turno = []
     for o in ordenes_todas:
+        if o.get("estado") == "Cancelada":
+            continue
         oid = o.get("id")
         fecha_orden = fecha_iso_a_sv(o.get("created_at", "")).date()
         es_de_hoy = (fecha_orden == hoy)
